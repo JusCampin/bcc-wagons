@@ -23,7 +23,7 @@ jobs:
         working-directory: ./ui
       - uses: vimtor/action-zip@v1
         with:
-          files: fxmanifest.lua LICENSE README.md locale.lua version ui/dist client server configs languages wagons.sql
+          files: fxmanifest.lua LICENSE README.md locale.lua version ui/dist debug_init.lua client server configs languages wagons.sql
           recursive: false
           dest: bcc-wagons.zip
       - name: get-npm-version
