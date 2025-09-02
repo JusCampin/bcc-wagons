@@ -5,7 +5,7 @@ Config = {
     -----------------------------------------------------
 
     devMode = {
-        active = false, -- Shows Debug Prints in Client and Server Consoles
+        active = false,        -- Shows Debug Prints in Client and Server Consoles
         command = 'wagonStart' -- Command to Start Main Thread if devMode is active and resource is restarted
     },
     -----------------------------------------------------
@@ -52,8 +52,10 @@ Config = {
     -----------------------------------------------------
 
     -- Max Number of Wagons per Player
-    maxPlayerWagons = 5,      -- Default: 5
-    maxWainwrightWagons = 10, -- Default: 10
+    maxWagons = {
+        player = 5,     -- Default: 5
+        wainwright = 10 -- Default: 10
+    },
     -----------------------------------------------------
 
     -- Translate Label Only
