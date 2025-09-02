@@ -313,14 +313,9 @@ RegisterNUICallback('LoadWagon', function(data, cb)
         MyEntity = nil
     end
 
-    local model = data.WagonModel
+    local model = data.wagonModel
     local hash = joaat(model)
     LoadModel(hash, model)
-
-    -- local seats = Citizen.InvokeNative(0x9A578736FF3A17C3, hash) -- GetVehicleModelNumberOfSeats
-    -- if seats >= 1 then
-    --     Core.NotifyRightTip('Seats: ' .. tostring(seats), 4000)
-    -- end
 
     if ShopEntity then
         DeleteEntity(ShopEntity)
@@ -336,27 +331,24 @@ RegisterNUICallback('LoadWagon', function(data, cb)
         Cam = true
         CameraLighting()
     end
-
-    -- local passengers = Citizen.InvokeNative(0xA9C55F1C15E62E06, ShopEntity) -- GetVehicleMaxNumberOfPassengers
-    -- if passengers >= 1 then
-    --     Core.NotifyRightTip('Passengers: ' .. tostring(passengers), 4000)
-    -- end
-
 end)
 
 RegisterNUICallback('BuyWagon', function(data, cb)
     cb('ok')
-    CheckPlayerJob(true)
+    CheckPlayerJob(true, false)
+
     if Sites[Site].wainwrightBuy and not IsWainwright then
         Core.NotifyRightTip(_U('wainwrightBuyWagon'), 4000)
         WagonMenu()
         return
     end
+
     if IsWainwright then
         data.isWainwright = true
     else
         data.isWainwright = false
     end
+
     local canBuy = Core.Callback.TriggerAwait('bcc-wagons:BuyWagon', data)
     if canBuy then
         SetWagonName(data, false)
@@ -382,16 +374,15 @@ function SetWagonName(data, rename)
         if GetOnscreenKeyboardResult() then
             local wagonName = GetOnscreenKeyboardResult()
             if string.len(wagonName) > 0 then
-                local wagonInfo = {wagonData = data, name = wagonName}
-                if rename then
-                    local nameSaved = Core.Callback.TriggerAwait('bcc-wagons:UpdateWagonName', wagonInfo)
-                    if nameSaved then
+                if not rename then
+                    local wagonSaved = Core.Callback.TriggerAwait('bcc-wagons:SaveNewWagon', data, wagonName)
+                    if wagonSaved then
                         WagonMenu()
                     end
                     return
                 else
-                    local wagonSaved = Core.Callback.TriggerAwait('bcc-wagons:SaveNewWagon', wagonInfo)
-                    if wagonSaved then
+                    local nameSaved = Core.Callback.TriggerAwait('bcc-wagons:UpdateWagonName', data, wagonName)
+                    if nameSaved then
                         WagonMenu()
                     end
                     return
@@ -401,14 +392,18 @@ function SetWagonName(data, rename)
                 return
             end
         end
-        SendNUIMessage({
-            action = 'show',
-            shopData = Wagons,
-            location = ShopName,
-            currencyType = Config.currencyType
-        })
-        SetNuiFocus(true, true)
-        TriggerServerEvent('bcc-wagons:GetMyWagons')
+        local wagonData = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
+        if wagonData then
+            SendNUIMessage({
+                action = 'show',
+                shopData = JobMatchedWagons,
+                translations = Translations,
+                location = ShopName,
+                myWagonsData = wagonData,
+                currencyType = Config.currencyType
+            })
+            SetNuiFocus(true, true)
+        end
     end)
 end
 
@@ -424,7 +419,7 @@ RegisterNUICallback('LoadMyWagon', function(data, cb)
         ShopEntity = nil
     end
 
-    local model = data.WagonModel
+    local model = data.wagonModel
     local hash = joaat(model)
     LoadModel(hash, model)
 
@@ -446,6 +441,7 @@ end)
 
 RegisterNUICallback('SelectWagon', function(data, cb)
     cb('ok')
+    DBG.Info(('Selecting wagon with ID: %s'):format(data.wagonId))
     TriggerServerEvent('bcc-wagons:SelectWagon', data)
 end)
 
@@ -467,14 +463,14 @@ end
 
 RegisterNUICallback('SpawnData', function(data, cb)
     cb('ok')
-    SpawnWagon(data.WagonModel, data.WagonName, true, data.WagonId)
+    SpawnWagon(data.wagonModel, data.wagonName, true, data.wagonId)
 end)
 
 function SpawnWagon(wagonModel, wagonName, menuSpawn, wagonId)
     ResetWagon()
 
-    for _, wagonModels in pairs(Wagons) do
-        for model, wagonConfig in pairs(wagonModels.types) do
+    for _, wagonTypes in pairs(Wagons) do
+        for model, wagonConfig in pairs(wagonTypes.models) do
             if model == wagonModel then
                 WagonCfg = wagonConfig
                 break
@@ -765,14 +761,18 @@ function WagonMenu()
         ShopEntity = nil
     end
 
-    SendNUIMessage({
-        action = 'show',
-        shopData = Wagons,
-        location = ShopName,
-        currencyType = Config.currencyType
-    })
-    SetNuiFocus(true, true)
-    TriggerServerEvent('bcc-wagons:GetMyWagons')
+    local wagonData = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
+    if wagonData then
+        SendNUIMessage({
+            action = 'show',
+            shopData = JobMatchedWagons,
+            translations = Translations,
+            location = ShopName,
+            myWagonsData = wagonData,
+            currencyType = Config.currencyType
+        })
+        SetNuiFocus(true, true)
+    end
 end
 
 -- Call Selected Wagon
@@ -921,20 +921,21 @@ end
 
 function CheckPlayerJob(wainwright, site)
     local result = Core.Callback.TriggerAwait('bcc-wagons:CheckJob', wainwright, site)
-    if wainwright and result then
-        IsWainwright = false
-        if result[1] then
-            IsWainwright = true
-        end
-    elseif result then
-        HasJob = false
+    if not result then return end
+
+    IsWainwright, HasJob = false, false
+
+    if wainwright and result[1] then
+        IsWainwright = true
+    elseif site then
         if result[1] then
             HasJob = true
         elseif Sites[site].shop.jobsEnabled then
             Core.NotifyRightTip(_U('needJob'), 4000)
         end
-        JobMatchedWagons = FindWagonsByJob(result[2])
     end
+
+    JobMatchedWagons = result[2] and FindWagonsByJob(result[2]) or nil
 end
 
 RegisterCommand(Config.commands.wagonEnter, function()
@@ -1152,32 +1153,32 @@ end
 
  function FindWagonsByJob(job)
     local matchingWagons = {}
-    for _, wagonModels in ipairs(Wagons) do
+    for _, wagonType in ipairs(Wagons) do
         local matchingModels = {}
-        for wagonModel, wagonModelData in orderedPairs(wagonModels.types) do
+        for wagonModel, wagonCfg in orderedPairs(wagonType.models) do
             -- using maps to break a loop, though technically making another loop, albeit simpler. Preferably you already configure jobs as a map so that you could expand
             -- perhaps when a request comes to have model accesses by job grade or similar
             local wagonJobs = {}
-            for _, wagonJob in pairs(wagonModelData.job) do
+            for _, wagonJob in pairs(wagonCfg.job) do
                 wagonJobs[wagonJob] = wagonJob
             end
             -- add matching model directly 
             if wagonJobs[job] ~= nil then
                 matchingModels[wagonModel] = {
-                    label = wagonModelData.label,
-                    cashPrice = wagonModelData.cashPrice,
-                    goldPrice = wagonModelData.goldPrice,
-                    invLimit = wagonModelData.inventory.limit,
-                    job = wagonModelData.job
+                    label = wagonCfg.label,
+                    cashPrice = wagonCfg.price.cash,
+                    goldPrice = wagonCfg.price.gold,
+                    invLimit = wagonCfg.inventory.limit,
+                    job = wagonCfg.job
                 }
             end
             --handle case where there isn\t a job attached to wagon model config
             if len(wagonJobs) == 0 then
                 matchingModels[wagonModel] = {
-                    label = wagonModelData.label,
-                    cashPrice = wagonModelData.cashPrice,
-                    goldPrice = wagonModelData.goldPrice,
-                    invLimit = wagonModelData.inventory.limit,
+                    label = wagonCfg.label,
+                    cashPrice = wagonCfg.price.cash,
+                    goldPrice = wagonCfg.price.gold,
+                    invLimit = wagonCfg.inventory.limit,
                     job = nil
                 }
             end
@@ -1185,8 +1186,8 @@ end
 
         if len(matchingModels) > 0 then
             matchingWagons[#matchingWagons + 1] = {
-                name = wagonModels.name,
-                types = matchingModels
+                type = wagonType.type,
+                models = matchingModels
             }
         end
     end
