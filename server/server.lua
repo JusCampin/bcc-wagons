@@ -10,117 +10,214 @@ local DBG = BCCWagonsDebug or {
 
 local Discord = BccUtils.Discord.setup(Config.Webhook, Config.WebhookTitle, Config.WebhookAvatar)
 
+local function CheckPlayerJob(charJob, jobGrade, jobConfig)
+    for _, job in ipairs(jobConfig) do
+        if charJob == job.name and jobGrade >= job.grade then
+            return true
+        end
+    end
+    return false
+end
+
+Core.Callback.Register('bcc-wagons:CheckJob', function(source, cb, wainwright, site)
+    local src = source
+    local user = Core.getUser(src)
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
+    local character = user.getUsedCharacter
+    local charJob = character.job
+    local jobGrade = character.jobGrade
+    local jobConfig = (site and Sites[site].shop.jobs) or (wainwright and Config.wainwrightJob) or nil
+
+    if not CheckPlayerJob(charJob, jobGrade, jobConfig) then
+        return cb({false, charJob})
+    end
+
+    DBG.Success('User has the required job and grade.')
+    cb({true, charJob})
+end)
+
+--- @param data table
 Core.Callback.Register('bcc-wagons:BuyWagon', function(source, cb, data)
     local src = source
     local user = Core.getUser(src)
-    if not user then return cb(false) end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
     local character = user.getUsedCharacter
     local charid = character.charIdentifier
-    local maxWagons = Config.maxPlayerWagons
-    if data.isWainwright then
-        maxWagons = Config.maxWainwrightWagons
-    end
+    local maxWagons = data.isWainwright and Config.maxWagons.wainwright or Config.maxWagons.player
+    local model = data.Model
+
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { charid })
-    if #wagons >= maxWagons then
+    if wagons and #wagons >= maxWagons then
         Core.NotifyRightTip(src, _U('wagonLimit') .. maxWagons .. _U('wagons'), 4000)
-        cb(false)
-        return
+        return cb(false)
     end
-    if data.IsCash then
-        if character.money >= data.Cash then
-            cb(true)
-        else
-            Core.NotifyRightTip(src, _U('shortCash'), 4000)
-            cb(false)
-        end
-    else
-        if character.gold >= data.Gold then
-            cb(true)
-        else
-            Core.NotifyRightTip(src, _U('shortGold'), 4000)
-            cb(false)
-        end
-    end
-end)
 
-Core.Callback.Register('bcc-wagons:SaveNewWagon', function(source, cb, wagonInfo)
-    local src = source
-    local user = Core.getUser(src)
-    if not user then return cb(false) end
-    local character = user.getUsedCharacter
-    local identifier = character.identifier
-    local charid = character.charIdentifier
-    local model = wagonInfo.wagonData.ModelW
-    local cash = wagonInfo.wagonData.IsCash
-    local name = wagonInfo.name
-
-    for _, wagonModels in pairs(Wagons) do
-        for modelWagon, wagonConfig in pairs(wagonModels.types) do
+    for _, wagonTypes in pairs(Wagons) do
+        for modelWagon, wagonConfig in pairs(wagonTypes.models) do
             if model == modelWagon then
-                local cashPrice = wagonConfig.cashPrice
-                local goldPrice = wagonConfig.goldPrice
-
-                if (cash) and (character.money >= cashPrice) then
-                    character.removeCurrency(0, cashPrice)
-                    Discord:sendMessage("Name: " .. character.firstname .. " " .. character.lastname .. "\nIdentifier: " .. character.identifier
-                    .. "\nWagon Name: " .. name .. "\nWagon Model: " .. model .. "\nFor cash: $" .. cashPrice)
-
-                elseif (not cash) and (character.gold >= goldPrice) then
-                    character.removeCurrency(1, goldPrice)
-                    Discord:sendMessage("Name: " .. character.firstname .. " " .. character.lastname .. "\nIdentifier: " .. character.identifier
-                    .. "\nWagon Name: " .. name .. "\nWagon Model: " .. model .. "\nFor Gold: " .. goldPrice)
-
-                else
-                    if cash then
+                if data.IsCash then
+                    if character.money >= wagonConfig.price.cash then
+                        return cb(true)
+                    else
                         Core.NotifyRightTip(src, _U('shortCash'), 4000)
+                        return cb(false)
+                    end
+                else
+                    if character.gold >= wagonConfig.price.gold then
+                        return cb(true)
                     else
                         Core.NotifyRightTip(src, _U('shortGold'), 4000)
+                        return cb(false)
                     end
-                    return cb(true)
                 end
-
-                local condition = wagonConfig.condition.maxAmount
-                MySQL.query.await('INSERT INTO `player_wagons` (`identifier`, `charid`, `name`, `model`, `condition`) VALUES (?, ?, ?, ?, ?)',
-                    { identifier, charid, name, model, condition })
-                break
             end
         end
     end
-    cb(true)
+
+    DBG.Error('Invalid wagon model for BuyWagon: ' .. tostring(model))
+    cb(false)
 end)
 
-Core.Callback.Register('bcc-wagons:UpdateWagonName', function(source, cb, wagonInfo)
+Core.Callback.Register('bcc-wagons:SaveNewWagon', function(source, cb, data, name)
     local src = source
     local user = Core.getUser(src)
-    if not user then return cb(false) end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
     local character = user.getUsedCharacter
+    local identifier = character.identifier
+    local charid = character.charIdentifier
+    local model = data.Model
+
+    -- Loop through wagon types and models
+    for _, wagonTypes in pairs(Wagons) do
+        for wagonModel, wagonConfig in pairs(wagonTypes.models) do
+            if model == wagonModel then
+                local cashPrice = wagonConfig.price.cash
+                local goldPrice = wagonConfig.price.gold
+                local condition = wagonConfig.condition.maxAmount
+
+                -- Handle cash purchase
+                if data.IsCash then
+                    if character.money >= cashPrice then
+                        character.removeCurrency(0, cashPrice)
+                        Discord:sendMessage("Name: " ..
+                            character.firstname .. " " .. character.lastname .. "\nIdentifier: " .. character.identifier
+                            .. "\nWagon Name: " .. name .. "\nWagon Model: " .. model .. "\nFor cash: $" .. cashPrice)
+                    else
+                        Core.NotifyRightTip(src, _U('shortCash'), 4000)
+                        return cb(false)
+                    end
+                    -- Handle gold purchase
+                else
+                    if character.gold >= goldPrice then
+                        character.removeCurrency(1, goldPrice)
+                        Discord:sendMessage("Name: " ..
+                            character.firstname .. " " .. character.lastname .. "\nIdentifier: " .. character.identifier
+                            .. "\nWagon Name: " .. name .. "\nWagon Model: " .. model .. "\nFor Gold: " .. goldPrice)
+                    else
+                        Core.NotifyRightTip(src, _U('shortGold'), 4000)
+                        return cb(false)
+                    end
+                end
+
+                -- Save the wagon to the database
+                MySQL.query.await(
+                    'INSERT INTO `player_wagons` (`identifier`, `charid`, `name`, `model`, `condition`) VALUES (?, ?, ?, ?, ?)',
+                    { identifier, charid, name, model, condition }
+                )
+                return cb(true)
+            end
+        end
+    end
+
+    -- No matching wagon model found
+    DBG.Error('Invalid wagon model for SaveNewWagon: ' .. tostring(model))
+    return cb(false)
+end)
+
+Core.Callback.Register('bcc-wagons:UpdateWagonName', function(source, cb, data, name)
+    local src = source
+    local user = Core.getUser(src)
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
+    local character = user.getUsedCharacter
+    local identifier = character.identifier
     local charid = character.charIdentifier
 
-    MySQL.query.await('UPDATE `player_wagons` SET `name` = ? WHERE `charid` = ? AND `id` = ?', { wagonInfo.name, charid, wagonInfo.wagonData.WagonId })
+    MySQL.query.await('UPDATE `player_wagons` SET `name` = ? WHERE `charid` = ? AND `identifier` = ? AND `id` = ?',
+    { name, charid, identifier, data.wagonId })
+
     cb(true)
 end)
 
 RegisterNetEvent('bcc-wagons:SelectWagon', function(data)
     local src = source
     local user = Core.getUser(src)
-    if not user then return end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return
+    end
+
     local character = user.getUsedCharacter
     local charid = character.charIdentifier
-    local id = tonumber(data.WagonId)
+    local id = data.wagonId
 
-    local wagon = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { charid })
-    for i = 1, #wagon do
-        MySQL.query.await('UPDATE `player_wagons` SET `selected` = ? WHERE `charid` = ? AND `id` = ?', { 0, charid, wagon[i].id })
-        if wagon[i].id == id then
-            MySQL.query.await('UPDATE `player_wagons` SET `selected` = ? WHERE `charid` = ? AND `id` = ?', { 1, charid, id })
-        end
+    DBG.Info(('Selecting wagon ID: %s for character ID: %s'):format(id, charid))
+
+    -- Check if the wagon exists and belongs to the character
+    local wagon = MySQL.query.await('SELECT 1 FROM `player_wagons` WHERE `charid` = ? AND `id` = ?', { charid, id })
+    if #wagon == 0 then
+        DBG.Error(('Wagon not found or does not belong to character. Wagon ID: %s, Char ID: %s'):format(id, charid))
+        return
+    end
+
+    -- Deselect all wagons for the character
+    local deselected = MySQL.update.await('UPDATE `player_wagons` SET `selected` = 0 WHERE `charid` = ?', { charid })
+    -- Select the chosen wagon
+    local selected = MySQL.update.await('UPDATE `player_wagons` SET `selected` = 1 WHERE `charid` = ? AND `id` = ?', { charid, id })
+
+    -- Log success
+    if deselected ~= nil and selected ~= nil then
+        DBG.Success(('Updated wagon selection. Deselected: %d, Selected: %d'):format(deselected, selected))
+    else
+        DBG.Error('Failed to update wagon selection in database.')
     end
 end)
 
 Core.Callback.Register('bcc-wagons:GetWagonData', function(source, cb)
     local src = source
     local user = Core.getUser(src)
-    if not user then return cb(false) end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
     local character = user.getUsedCharacter
     local charid = character.charIdentifier
     local data = nil
@@ -154,7 +251,7 @@ Core.Callback.Register('bcc-wagons:GetMyWagons', function(source, cb)
 
     -- Check if the user exists
     if not user then
-        --DebugPrint('User not found for source: ' .. tostring(src))
+        DBG.Error('User not found for source: ' .. tostring(src))
         return cb(false)
     end
 
@@ -170,11 +267,17 @@ end)
 Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
     local src = source
     local user = Core.getUser(src)
-    if not user then return cb(false) end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
     local character = user.getUsedCharacter
     local charid = character.charIdentifier
     local modelWagon = nil
-    local id = tonumber(data.WagonId)
+    local id = tonumber(data.wagonId)
 
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { charid })
     for i = 1, #wagons do
@@ -183,10 +286,10 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
             MySQL.query.await('DELETE FROM `player_wagons` WHERE `charid` = ? AND `id` = ?', { charid, id })
         end
     end
-    for _, wagonModels in pairs(Wagons) do
-        for model, wagonConfig in pairs(wagonModels.types) do
+    for _, wagonTypes in pairs(Wagons) do
+        for model, wagonConfig in pairs(wagonTypes.models) do
             if model == modelWagon then
-                local sellPrice = (Config.sellPrice * wagonConfig.cashPrice)
+                local sellPrice = (Config.sellPrice * wagonConfig.price.cash)
                 sellPrice = math.floor(sellPrice)  -- Round to the nearest whole number
                 character.addCurrency(0, sellPrice)
                 Discord:sendMessage("Name: " .. character.firstname .. " " .. character.lastname .. "\nIdentifier: " .. character.identifier .. "\nWagon Name: " .. data.WagonName .. "\nWagon Model: " .. data.WagonModel .. "\nSold for: $" .. sellPrice)
@@ -203,12 +306,21 @@ Core.Callback.Register('bcc-wagons:SaveWagonTrade', function(source, cb, serverI
     -- Current Owner
     local src = source
     local curUser = Core.getUser(src)
-    if not curUser then return cb(false) end
+    -- Check if the user exists
+    if not curUser then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
     local curOwner = curUser.getUsedCharacter
     local curOwnerName = curOwner.firstname .. " " .. curOwner.lastname
+
     -- New Owner
     local newUser = Core.getUser(serverId)
-    if not newUser then return cb(false) end
+    -- Check if the user exists
+    if not newUser then
+        DBG.Error('User not found for source: ' .. tostring(serverId))
+        return cb(false)
+    end
     local newOwner = newUser.getUsedCharacter
     local newOwnerId = newOwner.identifier
     local newOwnerCharId = newOwner.charIdentifier
@@ -218,10 +330,8 @@ Core.Callback.Register('bcc-wagons:SaveWagonTrade', function(source, cb, serverI
 
     local isWainwright = false
     isWainwright = CheckPlayerJob(charJob, jobGrade, Config.wainwrightJob)
-    local maxWagons = Config.maxPlayerWagons
-    if isWainwright then
-        maxWagons = Config.maxWainwrightWagons
-    end
+    local maxWagons = isWainwright and Config.maxWagons.wainwright or Config.maxWagons.player
+
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { newOwnerCharId })
     if #wagons >= maxWagons then
         Core.NotifyRightTip(src, _U('tradeFailed') .. newOwnerName .. _U('tooManyWagons'), 5000)
@@ -240,11 +350,17 @@ RegisterNetEvent('bcc-wagons:RegisterInventory', function(id, wagonModel)
     local idStr = 'wagon_' .. tostring(id)
     local src = source
     local user = Core.getUser(src)
-    if not user then return end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return
+    end
+
     local isRegistered = exports.vorp_inventory:isCustomInventoryRegistered(idStr)
 
-    for _, wagonModels in pairs(Wagons) do
-        for model, wagonConfig in pairs(wagonModels.types) do
+    for _, wagonTypes in pairs(Wagons) do
+        for model, wagonConfig in pairs(wagonTypes.models) do
             if model == wagonModel then
                 local data = {
                     id = idStr,
@@ -300,14 +416,26 @@ end)
 RegisterNetEvent('bcc-wagons:OpenInventory', function(id)
     local src = source
     local user = Core.getUser(src)
-    if not user then return end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return
+    end
+
     exports.vorp_inventory:openInventory(src, 'wagon_' .. tostring(id))
 end)
 
 Core.Callback.Register('bcc-wagons:GetRepairLevel', function(source, cb, myWagonId, myWagonModel)
     local src = source
     local user = Core.getUser(src)
-    if not user then return cb(false) end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
     local character = user.getUsedCharacter
     local charid = character.charIdentifier
 
@@ -322,7 +450,13 @@ end)
 Core.Callback.Register('bcc-wagons:UpdateRepairLevel', function(source, cb, myWagonId, myWagonModel)
     local src = source
     local user = Core.getUser(src)
-    if not user then return end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
     local character = user.getUsedCharacter
     local charid = character.charIdentifier
 
@@ -330,8 +464,8 @@ Core.Callback.Register('bcc-wagons:UpdateRepairLevel', function(source, cb, myWa
     if not wagonData or not wagonData[1] then return cb(false) end
 
     local wagonCfg = nil
-    for _, wagonModels in pairs(Wagons) do
-        for model, wagonConfig in pairs(wagonModels.types) do
+    for _, wagonTypes in pairs(Wagons) do
+        for model, wagonConfig in pairs(wagonTypes.models) do
             if myWagonModel == model then
                 wagonCfg = wagonConfig
                 break
@@ -351,7 +485,12 @@ end)
 Core.Callback.Register('bcc-wagons:GetItemDurability', function(source, cb, item)
     local src = source
     local user = Core.getUser(src)
-    if not user then return cb(false) end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
 
     local tool = exports.vorp_inventory:getItem(src, item)
     if not tool then return cb('0') end
@@ -387,7 +526,13 @@ end
 Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId, myWagonModel)
     local src = source
     local user = Core.getUser(src)
-    if not user then return cb(false) end
+
+    -- Check if the user exists
+    if not user then
+        DBG.Error('User not found for source: ' .. tostring(src))
+        return cb(false)
+    end
+
     local character = user.getUsedCharacter
     local charid = character.charIdentifier
     local item = Config.repair.item
@@ -402,8 +547,8 @@ Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId,
     if not wagonData or not wagonData[1] then return cb(false) end
 
     local wagonCfg = nil
-    for _, wagonModels in pairs(Wagons) do
-        for model, wagonConfig in pairs(wagonModels.types) do
+    for _, wagonTypes in pairs(Wagons) do
+        for model, wagonConfig in pairs(wagonTypes.models) do
             if myWagonModel == model then
                 wagonCfg = wagonConfig
                 break
@@ -428,18 +573,25 @@ Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId,
 end)
 
 if Config.outfitsAtWagon then
-
     RegisterNetEvent('bcc-wagons:GetOutfits', function()
         local src = source
         local user = Core.getUser(src)
-        if not user then return end
+
+        -- Check if the user exists
+        if not user then
+            DBG.Error('User not found for source: ' .. tostring(src))
+            return
+        end
+
         local character = user.getUsedCharacter
         local identifier = character.identifier
         local charIdentifier = character.charIdentifier
 
-        exports.oxmysql:execute("SELECT * FROM outfits WHERE `identifier` = ? AND `charidentifier` = ?", { identifier, charIdentifier }, function(result)
+        exports.oxmysql:execute("SELECT * FROM outfits WHERE `identifier` = ? AND `charidentifier` = ?",
+            { identifier, charIdentifier }, function(result)
             if result[1] then
-                TriggerClientEvent('bcc-wagons:LoadOutfits', src, { comps = character.comps, compTints = character.compTints }, result)
+                TriggerClientEvent('bcc-wagons:LoadOutfits', src,
+                    { comps = character.comps, compTints = character.compTints }, result)
             end
         end)
     end)
@@ -447,54 +599,26 @@ if Config.outfitsAtWagon then
     RegisterNetEvent('bcc-wagons:setOutfit', function(Outfit, CacheComps)
         local src = source
         local user = Core.getUser(src)
-        if not user then return end
-        local character = user.getUsedCharacter
-            if CacheComps then
-                user.updateComps(json.encode(CacheComps))
-            end
 
-            if Outfit then
-                user.updateSkin(json.encode(Outfit))
-            end
+        -- Check if the user exists
+        if not user then
+            DBG.Error('User not found for source: ' .. tostring(src))
+            return
+        end
+
+        local character = user.getUsedCharacter
+        if CacheComps then
+            user.updateComps(json.encode(CacheComps))
+        end
+
+        if Outfit then
+            user.updateSkin(json.encode(Outfit))
+        end
         --[[character.updateComps(Outfit.comps)
         character.updateCompTints(Outfit.compTints or '{}')
-    
-        TriggerClientEvent('vorpcharacter:updateCache', src, Outfit, CacheComps)]]--
+
+        TriggerClientEvent('vorpcharacter:updateCache', src, Outfit, CacheComps)]] --
     end)
-end
-
-Core.Callback.Register('bcc-wagons:CheckJob', function(source, cb, wainwright, site)
-    local src = source
-    local user = Core.getUser(src)
-    if not user then return cb(false) end
-    local character = user.getUsedCharacter
-    local charJob = character.job
-    local jobGrade = character.jobGrade
-    if not charJob then
-        cb(false)
-        return
-    end
-    local jobConfig
-    if wainwright then
-        jobConfig = Config.wainwrightJob
-    else
-        jobConfig = Sites[site].shop.jobs
-    end
-    local hasJob = false
-    hasJob = CheckPlayerJob(charJob, jobGrade, jobConfig)
-    if hasJob then
-        cb({ true, charJob })
-    else
-        cb({ false, charJob })
-    end
-end)
-
-function CheckPlayerJob(charJob, jobGrade, jobConfig)
-    for _, job in pairs(jobConfig) do
-        if (charJob == job.name) and (tonumber(jobGrade) >= tonumber(job.grade)) then
-            return true
-        end
-    end
 end
 
 BccUtils.Versioner.checkFile(GetCurrentResourceName(), 'https://github.com/BryceCanyonCounty/bcc-wagons')
