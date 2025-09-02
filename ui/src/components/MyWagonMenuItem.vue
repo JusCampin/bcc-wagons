@@ -82,7 +82,14 @@ export default {
     },
     SelectWagon() {
       if (!this.isOpen) {
-        this.$store.dispatch("setSelectedWagon", this.wagon);
+          this.$store.dispatch("setSelectedWagon", this.wagon);
+        api.post("selectWagon", {
+            wagonId: this.index,
+          })
+          .catch((e) => {
+            console.log(e.message);
+          });
+
         api.post("LoadMyWagon", {
           wagonId: this.index,
           wagonModel: this.model,
