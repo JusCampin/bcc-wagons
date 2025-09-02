@@ -1,15 +1,17 @@
-Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% of cashPrice
+Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% of Cash Price
     -----------------------------------------------------
     -- Buggies
     -----------------------------------------------------
     {
-        name  = 'Buggies',
-        types = {                                    -- Only Players with Specified Job will See that Wagon to Purchase in the Menu
+        type  = 'Buggies',
+        models = {                                    -- Only Players with Specified Job will See that Wagon to Purchase in the Menu
             ['buggy01'] = {
                 label = 'Buggy 1',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 150,                     -- Purchase Price in Cash
-                goldPrice = 7,                       -- Purchase Price in Gold
+                price = {
+                    cash = 150,                     -- Purchase Price in Cash
+                    gold = 7,                       -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -66,8 +68,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['buggy02'] = {
                 label = 'Buggy 2',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 200,                     -- Purchase Price in Cash
-                goldPrice = 10,                      -- Purchase Price in Gold
+                price = {
+                    cash = 200,                     -- Purchase Price in Cash
+                    gold = 10,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -124,8 +128,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['buggy03'] = {
                 label = 'Buggy 3',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 250,                     -- Purchase Price in Cash
-                goldPrice = 12,                      -- Purchase Price in Gold
+                price = {
+                    cash = 250,                     -- Purchase Price in Cash
+                    gold = 12,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -183,13 +189,15 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
     -- Coaches
     -----------------------------------------------------
     {
-        name = 'Coaches',
-        types = {
+        type = 'Coaches',
+        models = {
             ['coach3'] = {
                 label = 'Coach 3',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 400,                     -- Purchase Price in Cash
-                goldPrice = 19,                      -- Purchase Price in Gold
+                price = {
+                    cash = 400,                     -- Purchase Price in Cash
+                    gold = 19,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -246,8 +254,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['coach4'] = {
                 label = 'Coach 4',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 300,                     -- Purchase Price in Cash
-                goldPrice = 14,                      -- Purchase Price in Gold
+                price = {
+                    cash = 300,                     -- Purchase Price in Cash
+                    gold = 14,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -304,8 +314,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['coach5'] = {
                 label = 'Coach 5',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 350,                     -- Purchase Price in Cash
-                goldPrice = 17,                      -- Purchase Price in Gold
+                price = {
+                    cash = 350,                     -- Purchase Price in Cash
+                    gold = 17,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -362,8 +374,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['coach6'] = {
                 label = 'Coach 6',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 300,                     -- Purchase Price in Cash
-                goldPrice = 14,                      -- Purchase Price in Gold
+                price = {
+                    cash = 300,                     -- Purchase Price in Cash
+                    gold = 14,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -421,13 +435,15 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
     -- Carts
     -----------------------------------------------------
     {
-        name = 'Carts',
-        types = {
+        type = 'Carts',
+        models = {
             ['cart01'] = {
                 label = 'Cart 1',                    -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 450,                     -- Purchase Price in Cash
-                goldPrice = 22,                      -- Purchase Price in Gold
+                price = {
+                    cash = 450,                     -- Purchase Price in Cash
+                    gold = 22,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -484,8 +500,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['cart02'] = {
                 label = 'Cart 2',                    -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 100,                     -- Purchase Price in Cash
-                goldPrice = 5,                       -- Purchase Price in Gold
+                price = {
+                    cash = 100,                     -- Purchase Price in Cash
+                    gold = 5,                       -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -542,8 +560,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['cart03'] = {
                 label = 'Cart 3',                    -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 450,                     -- Purchase Price in Cash
-                goldPrice = 22,                      -- Purchase Price in Gold
+                price = {
+                    cash = 450,                     -- Purchase Price in Cash
+                    gold = 22,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -600,8 +620,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['cart04'] = {
                 label = 'Cart 4',                    -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 550,                     -- Purchase Price in Cash
-                goldPrice = 26,                      -- Purchase Price in Gold
+                price = {
+                    cash = 550,                     -- Purchase Price in Cash
+                    gold = 26,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -658,8 +680,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['cart06'] = {
                 label = 'Cart 6',                    -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 650,                     -- Purchase Price in Cash
-                goldPrice = 31,                      -- Purchase Price in Gold
+                price = {
+                    cash = 650,                     -- Purchase Price in Cash
+                    gold = 31,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -716,8 +740,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['cart07'] = {
                 label = 'Cart 7',                    -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 400,                     -- Purchase Price in Cash
-                goldPrice = 19,                      -- Purchase Price in Gold
+                price = {
+                    cash = 400,                     -- Purchase Price in Cash
+                    gold = 19,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -774,8 +800,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['cart08'] = {
                 label = 'Cart 8',                    -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 400,                     -- Purchase Price in Cash
-                goldPrice = 19,                      -- Purchase Price in Gold
+                price = {
+                    cash = 400,                     -- Purchase Price in Cash
+                    gold = 19,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -832,8 +860,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['huntercart01'] = {
                 label = 'Hunter Cart',               -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 650,                     -- Purchase Price in Cash
-                goldPrice = 31,                      -- Purchase Price in Gold
+                price = {
+                    cash = 650,                     -- Purchase Price in Cash
+                    gold = 31,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -891,13 +921,15 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
     -- Wagons
     -----------------------------------------------------
     {
-        name = 'Wagons',
-        types = {
+        type = 'Wagons',
+        models = {
             ['supplywagon'] = {
                 label = 'Supply Wagon',              -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 950,                     -- Purchase Price in Cash
-                goldPrice = 46,                      -- Purchase Price in Gold
+                price = {
+                    cash = 950,                     -- Purchase Price in Cash
+                    gold = 46,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -954,8 +986,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['wagontraveller01x'] = {
                 label = 'Travel Wagon',              -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1950,                    -- Purchase Price in Cash
-                goldPrice = 94,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1950,                    -- Purchase Price in Cash
+                    gold = 94,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -1012,8 +1046,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['wagon02x'] = {
                 label = 'Wagon 2',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1250,                    -- Purchase Price in Cash
-                goldPrice = 60,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1250,                    -- Purchase Price in Cash
+                    gold = 60,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -1070,8 +1106,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['wagon03x'] = {
                 label = 'Wagon 3',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1050,                    -- Purchase Price in Cash
-                goldPrice = 51,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1050,                    -- Purchase Price in Cash
+                    gold = 51,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -1128,8 +1166,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['wagon04x'] = {
                 label = 'Wagon 4',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1250,                    -- Purchase Price in Cash
-                goldPrice = 60,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1250,                    -- Purchase Price in Cash
+                    gold = 60,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -1186,8 +1226,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['wagon05x'] = {
                 label = 'Wagon 5',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1050,                    -- Purchase Price in Cash
-                goldPrice = 51,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1050,                    -- Purchase Price in Cash
+                    gold = 51,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -1244,8 +1286,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['wagon06x'] = {
                 label = 'Wagon 6',                   -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1250,                    -- Purchase Price in Cash
-                goldPrice = 60,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1250,                    -- Purchase Price in Cash
+                    gold = 60,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -1302,8 +1346,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['chuckwagon000x'] = {
                 label = 'Chuck Wagon 1',             -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1500,                    -- Purchase Price in Cash
-                goldPrice = 73,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1500,                    -- Purchase Price in Cash
+                    gold = 73,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
@@ -1360,8 +1406,10 @@ Wagons = { -- Gold to Dollar Ratio Based on 1899 Gold Price / sellPrice is 60% o
             ['chuckwagon002x'] = {
                 label = 'Chuck Wagon 2',             -- Label to Display in Shop Menu
                 distance = 5,                        -- Default: 5 / Distance from Wagon to Show Prompts / Open Menu
-                cashPrice = 1500,                    -- Purchase Price in Cash
-                goldPrice = 73,                      -- Purchase Price in Gold
+                price = {
+                    cash = 1500,                    -- Purchase Price in Cash
+                    gold = 73,                      -- Purchase Price in Gold
+                },
                 brakeSet = true,                     -- Default: true / Set to false to Spawn Wagon with Brake Released
                 blip = {
                     enabled = true,                  -- Set false to Disable Blip
