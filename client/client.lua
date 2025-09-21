@@ -1,11 +1,6 @@
 local Core = exports.vorp_core:GetCore()
 ---@type BCCWagonsDebugLib
-local DBG = BCCWagonsDebug or {
-    Info = function() end,
-    Error = function() end,
-    Warning = function() end,
-    Success = function() end
-}
+local DBG = BCCWagonsDebug
 -- Prompts
 local ShopPrompt, ReturnPrompt
 local ShopGroup = GetRandomIntInRange(0, 0xffffff)
@@ -19,10 +14,9 @@ local ActionPrompt
 local ActionGroup = GetRandomIntInRange(0, 0xffffff)
 local PromptsStarted, TradePromptsStarted = false, false
 -- Wagons
-local MyEntity, ShopName, ShopEntity, Site, Speed, Format
+local MyEntity, ShopName, ShopEntity, SiteCfg, Speed, Format, HasJob
 local InMenu, IsShopClosed = false, false
 local Cam = false
-local HasJob = false
 local IsWainwright = false
 MyWagon, MyWagonId, MyWagonName, MyWagonModel = 0, nil, nil, nil
 WagonCfg, RepairLevel = {}, 0
@@ -139,29 +133,31 @@ local function ManageSiteBlip(site, closed)
     end
 end
 
+---@param model number
+---@param modelName string
+---@return boolean
 local function LoadModel(model, modelName)
-    DBG.Info('Loading model: ' .. modelName)
     -- Validate input
     if not model or not modelName then
-        DBG.Error('Invalid model or modelName for LoadModel: ' .. tostring(model) .. ', ' .. tostring(modelName))
+        DBG.Error(('Invalid model or modelName for LoadModel: %s, %s'):format(tostring(model), tostring(modelName)))
         return false
     end
 
     -- Check if model is already loaded
     if HasModelLoaded(model) then
-        DBG.Success('Model already loaded: ' .. modelName)
+        DBG.Success(('Model already loaded: %s'):format(tostring(modelName)))
         return true
     end
 
     -- Check if model is valid
     if not IsModelValid(model) then
-        DBG.Error('Invalid model:' .. modelName)
+        DBG.Error(('Invalid model: %s'):format(tostring(modelName)))
         return false
     end
 
     -- Request model
+    DBG.Info(('Requesting model: %s'):format(tostring(modelName)))
     RequestModel(model, false)
-    DBG.Info('Requesting model: ' .. modelName)
 
     -- Set timeout (5 seconds)
     local timeout = 5000
@@ -171,44 +167,113 @@ local function LoadModel(model, modelName)
     while not HasModelLoaded(model) do
         -- Check for timeout
         if GetGameTimer() - startTime > timeout then
-            DBG.Error('Timeout while loading model: ' .. modelName)
+            DBG.Error(('Timeout while loading model: %s'):format(tostring(modelName)))
             return false
         end
         Wait(10)
     end
 
-    DBG.Success('Model loaded successfully: ' .. modelName)
+    DBG.Success(('Model loaded successfully: %s'):format(tostring(modelName)))
     return true
 end
 
+---@param site string
 local function AddNPC(site)
-    local siteCfg = Sites[site]
-    local coords = siteCfg.npc.coords
-
-    if not siteCfg.NPC then
-        local modelName = siteCfg.npc.model
-        local model = joaat(modelName)
-        LoadModel(model, modelName)
-
-        siteCfg.NPC = CreatePed(model, coords.x, coords.y, coords.z, siteCfg.npc.heading, false, false, false, false)
-        Citizen.InvokeNative(0x283978A15512B2FE, siteCfg.NPC, true) -- SetRandomOutfitVariation
-
-        --TaskStartScenarioInPlace(siteCfg.NPC, "WORLD_HUMAN_SMOKING", -1, true)
-        SetEntityCanBeDamaged(siteCfg.NPC, false)
-        SetEntityInvincible(siteCfg.NPC, true)
-        Wait(500)
-        FreezeEntityPosition(siteCfg.NPC, true)
-        SetBlockingOfNonTemporaryEvents(siteCfg.NPC, true)
+    -- Validate site configuration
+    if not site then
+        DBG.Error(('Invalid site: %s'):format(tostring(site)))
+        return false
     end
+
+    local siteCfg = Sites[site]
+    if not siteCfg or not siteCfg.npc then
+        DBG.Error(('Invalid site configuration for: %s'):format(tostring(site)))
+        return false
+    end
+
+    -- Check if NPC already exists
+    if siteCfg.NPC then
+        DBG.Warning(('NPC already exists for site: %s'):format(tostring(site)))
+        return true
+    end
+
+    -- Validate NPC coordinates and model
+    local coords = siteCfg.npc.coords
+    if not coords then
+        DBG.Error(('Invalid NPC coordinates for site: %s'):format(tostring(site)))
+        return false
+    end
+
+    local modelName = siteCfg.npc.model
+    if not modelName then
+        DBG.Error(('Invalid NPC model for site: %s'):format(tostring(site)))
+        return false
+    end
+
+    -- Load model and create the NPC
+    local model = joaat(modelName)
+    if not LoadModel(model, modelName) then
+        DBG.Error(('Failed to load NPC model for site: %s'):format(tostring(site)))
+        return false
+    end
+
+    -- Create the NPC
+    siteCfg.NPC = CreatePed(model, coords.x, coords.y, coords.z, siteCfg.npc.heading, false, false, false, false)
+
+    if not siteCfg.NPC or not DoesEntityExist(siteCfg.NPC) then
+        DBG.Error(('Failed to create NPC for site: %s'):format(tostring(site)))
+        return false
+    end
+
+    -- Configure the NPC
+    Citizen.InvokeNative(0x283978A15512B2FE, siteCfg.NPC, true) -- SetRandomOutfitVariation
+    --TaskStartScenarioInPlace(siteCfg.NPC, "WORLD_HUMAN_SMOKING", -1, true)
+
+    SetEntityCanBeDamaged(siteCfg.NPC, false)
+    SetEntityInvincible(siteCfg.NPC, true)
+    Wait(500)
+    FreezeEntityPosition(siteCfg.NPC, true)
+    SetBlockingOfNonTemporaryEvents(siteCfg.NPC, true)
+
+    DBG.Info(('Successfully added NPC for site: %s, Model: %s'):format(tostring(site), tostring(modelName)))
+    return true
 end
 
+---@param site string
+---@return boolean
 local function RemoveNPC(site)
-    local siteCfg = Sites[site]
-
-    if siteCfg.NPC then
-        DeleteEntity(siteCfg.NPC)
-        siteCfg.NPC = nil
+    -- Validate site input
+    if not site then
+        DBG.Error(('Invalid site: %s'):format(tostring(site)))
+        return false
     end
+
+    -- Check if site configuration exists
+    local siteCfg = Sites[site]
+    if not siteCfg then
+        DBG.Error(('Site configuration not found: %s'):format(tostring(site)))
+        return false
+    end
+
+    -- Check if NPC exists
+    if not siteCfg.NPC then
+        DBG.Info(('No NPC to remove for site: %s'):format(tostring(site)))
+        return true -- Site is valid, but no NPC exists (no-op)
+    end
+
+    -- Check if the entity exists before deletion
+    if not DoesEntityExist(siteCfg.NPC) then
+        DBG.Warning(('NPC entity does not exist for site: %s'):format(tostring(site)))
+        siteCfg.NPC = nil -- Clean up reference
+        return true -- Site is valid, but entity was already gone
+    end
+
+    -- Delete the NPC entity
+    DeleteEntity(siteCfg.NPC)
+    siteCfg.NPC = nil
+
+    DBG.Info(('Successfully removed NPC for site: %s'):format(tostring(site)))
+    return true
 end
 
 RegisterNetEvent('vorp:SelectedCharacter', function()
@@ -226,53 +291,81 @@ AddEventHandler('bcc-wagons:StartMainThread', function()
 
     CreateThread(function()
         StartPrompts()
+
         while true do
             local playerPed = PlayerPedId()
             local playerCoords = GetEntityCoords(playerPed)
             local sleep = 1000
 
+            -- Skip processing if player is in menu or dead
             if InMenu or IsEntityDead(playerPed) then
                 Wait(1000)
                 goto continue
             end
 
             for site, siteCfg in pairs(Sites) do
+                -- Calculate distance to site
                 local distance = #(playerCoords - siteCfg.npc.coords)
                 IsShopClosed = isShopClosed(siteCfg)
-
                 ManageSiteBlip(site, IsShopClosed)
 
+                -- Handle NPC spawning/despawning based on distance and shop status
                 if distance > siteCfg.npc.distance or IsShopClosed then
                     RemoveNPC(site)
                 elseif siteCfg.npc.active then
                     AddNPC(site)
                 end
 
-                if distance <= siteCfg.shop.distance then
-                    sleep = 0
-                    local promptText = IsShopClosed and siteCfg.shop.name .. _U('hours') .. siteCfg.shop.hours.open .. _U('to') ..
-                    siteCfg.shop.hours.close .. _U('hundred') or siteCfg.shop.prompt
+                -- Skip to next site if too far from shop
+                if distance > siteCfg.shop.distance then
+                    goto next_site
+                end
 
-                    UiPromptSetActiveGroupThisFrame(ShopGroup, CreateVarString(10, 'LITERAL_STRING', promptText), 1, 0, 0, 0)
-                    UiPromptSetEnabled(ShopPrompt, not IsShopClosed)
-                    UiPromptSetEnabled(ReturnPrompt, not IsShopClosed)
+                sleep = 0
 
-                    if not IsShopClosed then
-                        if Citizen.InvokeNative(0xC92AC953F0A982AE, ShopPrompt) then -- UiPromptHasStandardModeCompleted
-                            CheckPlayerJob(false, site)
-                            if siteCfg.shop.jobsEnabled then
-                                if not HasJob then goto continue end
+                -- Set prompt text based on shop status
+                local promptText
+                if IsShopClosed then
+                    promptText = ('%s %s %d %s %d %s'):format(
+                        siteCfg.shop.name,
+                        _U('hours'),
+                        siteCfg.shop.hours.open,
+                        _U('to'),
+                        siteCfg.shop.hours.close,
+                        _U('hundred')
+                    )
+                else
+                    promptText = siteCfg.shop.prompt
+                end
+
+                UiPromptSetActiveGroupThisFrame(ShopGroup, CreateVarString(10, 'LITERAL_STRING', promptText), 1, 0, 0, 0)
+                -- Enable/disable prompts based on shop status
+                UiPromptSetEnabled(ShopPrompt, not IsShopClosed)
+                UiPromptSetEnabled(ReturnPrompt, not IsShopClosed)
+
+                -- Handle prompt interactions
+                if not IsShopClosed then
+                    -- Shop menu prompt
+                    if UiPromptHasStandardModeCompleted(ShopPrompt, 0) then
+                        if siteCfg.shop.jobsEnabled then
+                            HasJob = CheckPlayerJob(false, site)
+                            if not HasJob then
+                                goto next_site
                             end
-                            OpenMenu(site)
-                        elseif Citizen.InvokeNative(0xC92AC953F0A982AE, ReturnPrompt) then -- UiPromptHasStandardModeCompleted
-                            if siteCfg.shop.jobsEnabled then
-                                CheckPlayerJob(false, site)
-                                if not HasJob then goto continue end
-                            end
-                            ReturnWagon()
                         end
+                        OpenMenu(site)
+                    -- Return wagon prompt
+                    elseif UiPromptHasStandardModeCompleted(ReturnPrompt, 0) then
+                        if siteCfg.shop.jobsEnabled then
+                            HasJob = CheckPlayerJob(false, site)
+                            if not HasJob then
+                                goto next_site
+                            end
+                        end
+                        ReturnWagon()
                     end
                 end
+                ::next_site::
             end
             ::continue::
             Wait(sleep)
@@ -280,29 +373,124 @@ AddEventHandler('bcc-wagons:StartMainThread', function()
     end)
 end)
 
+-- Camera to View Wagons in Shop Menu
+---@return boolean
+local function CreateCamera()
+    -- Validate SiteCfg
+    if not SiteCfg or not SiteCfg.wagon or not SiteCfg.wagon.camera or not SiteCfg.wagon.coords then
+        DBG.Error('Invalid SiteCfg for camera creation.')
+        return false
+    end
+
+    -- Create camera
+    local wagonCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    if not wagonCam or not DoesCamExist(wagonCam) then
+        DBG.Error('Failed to create camera for wagon menu.')
+        return false
+    end
+
+    -- Configure camera position and target
+    SetCamCoord(wagonCam, SiteCfg.wagon.camera.x, SiteCfg.wagon.camera.y, SiteCfg.wagon.camera.z + 2.0)
+    SetCamActive(wagonCam, true)
+    PointCamAtCoord(wagonCam, SiteCfg.wagon.coords.x, SiteCfg.wagon.coords.y, SiteCfg.wagon.coords.z)
+
+    -- Screen fade for smooth transition
+    DoScreenFadeOut(500)
+    Wait(500)
+    DoScreenFadeIn(500)
+
+    -- Render the camera
+    RenderScriptCams(true, false, 0, false, false, 0)
+
+     -- Play sound effect
+    Citizen.InvokeNative(0x67C540AA08E4A6F5, 'Leaderboard_Show', 'MP_Leaderboard_Sounds', true, 0) -- PlaySoundFrontend
+
+    DBG.Info('Successfully created and configured wagon shop camera.')
+    return true
+end
+
+---@param site string
 function OpenMenu(site)
+    -- Validate site input
+    if not site then
+        DBG.Error('Invalid site provided to OpenMenu.')
+        return
+    end
+
+    -- Hide radar and freeze player
     DisplayRadar(false)
     TaskStandStill(PlayerPedId(), -1)
+
+    -- Set menu state and site data
     InMenu = true
-    Site = site
-    ShopName = Sites[Site].shop.name
+    SiteCfg = Sites[site]
+    ShopName = SiteCfg.shop.name
 
-    --ResetWagon()
-    CreateCamera()
+    -- Create camera and open wagon menu
+    if not CreateCamera() then
+        DBG.Error('Failed to create camera for wagon menu.')
+        InMenu = false
+        DisplayRadar(true)
+        ClearPedTasksImmediately(PlayerPedId())
+        return
+    end
 
-    local data = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
-    if data then
-        SendNUIMessage({
-            action = 'show',
-            shopData = JobMatchedWagons,
-            translations = Translations,
-            location = ShopName,
-            myWagonsData = data,
-            currencyType = Config.currencyType
-        })
-        SetNuiFocus(true, true)
-    else
-        print('Failed to load wagon data')
+    WagonMenu()
+end
+
+function WagonMenu()
+    -- Clean up any existing shop entity
+    if ShopEntity and DoesEntityExist(ShopEntity) then
+        DeleteEntity(ShopEntity)
+        ShopEntity = nil
+        DBG.Info('Deleted existing shop entity.')
+    end
+
+    -- Fetch player's wagons and job
+    local result = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
+    if not result then
+        DBG.Error('Failed to fetch wagon data.')
+        return
+    end
+
+    local wagonData = result[1]
+    local job = result[2]
+
+    -- Filter wagons by job
+    local jobMatchedWagons = FindWagonsByJob(job)
+    if not jobMatchedWagons then
+        DBG.Warning('No wagons found for filtering.')
+        jobMatchedWagons = {} -- Fallback to empty table
+    end
+
+    -- Validate both wagonData and jobMatchedWagons before sending to NUI
+    if not wagonData then
+        DBG.Warning('No wagon data available to display.')
+        return
+    end
+
+    if not next(jobMatchedWagons) then -- Check if jobMatchedWagons is empty
+        DBG.Warning('No job-matched wagons available to display.')
+        return
+    end
+
+    -- Send data to NUI if wagon data exists
+    SendNUIMessage({
+        action = 'show',
+        shopData = jobMatchedWagons,
+        translations = Translations,
+        location = ShopName,
+        myWagonsData = wagonData,
+        currencyType = Config.currencyType
+    })
+    SetNuiFocus(true, true)
+    DBG.Info('Opened wagon menu with NUI focus.')
+end
+
+local function CameraLighting()
+    while Cam do
+        Wait(0)
+        Citizen.InvokeNative(0xD2D9E04C0DF927F4, SiteCfg.wagon.coords.x, SiteCfg.wagon.coords.y, SiteCfg.wagon.coords.z + 3, 130, 130, 85, 4.0, 15.0) -- DrawLightWithRange
     end
 end
 
@@ -322,8 +510,7 @@ RegisterNUICallback('LoadWagon', function(data, cb)
         ShopEntity = nil
     end
 
-    local siteCfg = Sites[Site]
-    ShopEntity = CreateVehicle(hash, siteCfg.wagon.coords, siteCfg.wagon.heading, false, false, false, false)
+    ShopEntity = CreateVehicle(hash, SiteCfg.wagon.coords, SiteCfg.wagon.heading, false, false, false, false)
     Citizen.InvokeNative(0x7263332501E07F52, ShopEntity, true) -- SetVehicleOnGroundProperly
     Citizen.InvokeNative(0x7D9EFB7AD6B19754, ShopEntity, true) -- FreezeEntityPosition
     SetModelAsNoLongerNeeded(hash)
@@ -337,7 +524,7 @@ RegisterNUICallback('BuyWagon', function(data, cb)
     cb('ok')
     CheckPlayerJob(true, false)
 
-    if Sites[Site].wainwrightBuy and not IsWainwright then
+    if SiteCfg.wainwrightBuy and not IsWainwright then
         Core.NotifyRightTip(_U('wainwrightBuyWagon'), 4000)
         WagonMenu()
         return
@@ -392,18 +579,8 @@ function SetWagonName(data, rename)
                 return
             end
         end
-        local wagonData = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
-        if wagonData then
-            SendNUIMessage({
-                action = 'show',
-                shopData = JobMatchedWagons,
-                translations = Translations,
-                location = ShopName,
-                myWagonsData = wagonData,
-                currencyType = Config.currencyType
-            })
-            SetNuiFocus(true, true)
-        end
+
+        WagonMenu()
     end)
 end
 
@@ -428,8 +605,7 @@ RegisterNUICallback('LoadMyWagon', function(data, cb)
         MyEntity = nil
     end
 
-    local siteCfg = Sites[Site]
-    MyEntity = CreateVehicle(hash, siteCfg.wagon.coords, siteCfg.wagon.heading, false, false, false, false)
+    MyEntity = CreateVehicle(hash, SiteCfg.wagon.coords, SiteCfg.wagon.heading, false, false, false, false)
     Citizen.InvokeNative(0x7263332501E07F52, MyEntity, true) -- SetVehicleOnGroundProperly
     Citizen.InvokeNative(0x7D9EFB7AD6B19754, MyEntity, true) -- FreezeEntityPosition
     SetModelAsNoLongerNeeded(hash)
@@ -485,8 +661,7 @@ function SpawnWagon(wagonModel, wagonName, menuSpawn, wagonId)
     LoadModel(hash, wagonModel)
 
     if menuSpawn then
-        local siteCfg = Sites[Site]
-        MyWagon = CreateVehicle(hash, siteCfg.wagon.coords, siteCfg.wagon.heading, true, false, false, false)
+        MyWagon = CreateVehicle(hash, SiteCfg.wagon.coords, SiteCfg.wagon.heading, true, false, false, false)
         Citizen.InvokeNative(0x7263332501E07F52, MyWagon, true) -- SetVehicleOnGroundProperly
         SetModelAsNoLongerNeeded(hash)
         if Config.seated then
@@ -732,48 +907,42 @@ end)
 -- Close Wagon Shop Menu
 RegisterNUICallback('CloseWagon', function(data, cb)
     cb('ok')
-    SendNUIMessage({
-        action = 'hide'
-    })
+
+    -- Hide the NUI and release focus
+    SendNUIMessage({ action = 'hide' })
     SetNuiFocus(false, false)
 
+    -- Play sound effect
     Citizen.InvokeNative(0x67C540AA08E4A6F5, 'Leaderboard_Hide', 'MP_Leaderboard_Sounds', true, 0) -- PlaySoundFrontend
-    if ShopEntity then
+
+    -- Clean up shop entity
+    if ShopEntity and DoesEntityExist(ShopEntity) then
         DeleteEntity(ShopEntity)
         ShopEntity = nil
+        DBG.Info('Deleted shop entity.')
     end
-    if MyEntity then
+
+    -- Clean up player's wagon entity
+    if MyEntity and DoesEntityExist(MyEntity) then
         DeleteEntity(MyEntity)
         MyEntity = nil
+        DBG.Info('Deleted player wagon entity.')
     end
 
-    Cam = false
-    DestroyAllCams(true)
+    -- Clean up camera
+    if Cam then
+        Cam = false
+        DestroyAllCams(true)
+        DBG.Info('Destroyed all script cameras.')
+    end
+
+    -- Restore game state
     DisplayRadar(true)
-    InMenu = false
     ClearPedTasksImmediately(PlayerPedId())
+    InMenu = false
+
+    DBG.Info('Successfully closed wagon shop menu.')
 end)
-
--- Reopen Menu After Sell or Failed Purchase
-function WagonMenu()
-    if ShopEntity then
-        DeleteEntity(ShopEntity)
-        ShopEntity = nil
-    end
-
-    local wagonData = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
-    if wagonData then
-        SendNUIMessage({
-            action = 'show',
-            shopData = JobMatchedWagons,
-            translations = Translations,
-            location = ShopName,
-            myWagonsData = wagonData,
-            currencyType = Config.currencyType
-        })
-        SetNuiFocus(true, true)
-    end
-end
 
 -- Call Selected Wagon
 CreateThread(function()
@@ -876,28 +1045,6 @@ function ResetWagon()
     Trading = false
 end
 
--- Camera to View Wagons
-function CreateCamera()
-    local siteCfg = Sites[Site]
-    local wagonCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
-    SetCamCoord(wagonCam, siteCfg.wagon.camera.x, siteCfg.wagon.camera.y, siteCfg.wagon.camera.z + 2.0)
-    SetCamActive(wagonCam, true)
-    PointCamAtCoord(wagonCam, siteCfg.wagon.coords.x, siteCfg.wagon.coords.y, siteCfg.wagon.coords.z)
-    DoScreenFadeOut(500)
-    Wait(500)
-    DoScreenFadeIn(500)
-    RenderScriptCams(true, false, 0, false, false, 0)
-    Citizen.InvokeNative(0x67C540AA08E4A6F5, 'Leaderboard_Show', 'MP_Leaderboard_Sounds', true, 0) -- PlaySoundFrontend
-end
-
-function CameraLighting()
-    local siteCfg = Sites[Site]
-    while Cam do
-        Wait(0)
-        Citizen.InvokeNative(0xD2D9E04C0DF927F4, siteCfg.wagon.coords.x, siteCfg.wagon.coords.y, siteCfg.wagon.coords.z + 3, 130, 130, 85, 4.0, 15.0) -- DrawLightWithRange
-    end
-end
-
 -- Rotate Wagons while Viewing
 RegisterNUICallback('Rotate', function(data, cb)
     cb('ok')
@@ -934,8 +1081,6 @@ function CheckPlayerJob(wainwright, site)
             Core.NotifyRightTip(_U('needJob'), 4000)
         end
     end
-
-    JobMatchedWagons = result[2] and FindWagonsByJob(result[2]) or nil
 end
 
 RegisterCommand(Config.commands.wagonEnter, function()
@@ -1003,63 +1148,6 @@ function StartTradePrompts()
         UiPromptRegisterEnd(TradePrompt)
 
         TradePromptsStarted = true
-    end
-end
-
-function ManageBlip(site, closed)
-    local siteCfg = Sites[site]
-
-    if (closed and not siteCfg.blip.show.closed) or (not siteCfg.blip.show.open) then
-        if Sites[site].Blip then
-            RemoveBlip(Sites[site].Blip)
-            Sites[site].Blip = nil
-        end
-        return
-    end
-
-    if not Sites[site].Blip then
-        siteCfg.Blip = Citizen.InvokeNative(0x554d9d53f696d002, 1664425300, siteCfg.npc.coords) -- BlipAddForCoords
-        SetBlipSprite(siteCfg.Blip, siteCfg.blip.sprite, true)
-        Citizen.InvokeNative(0x9CB1A1623062F402, siteCfg.Blip, siteCfg.blip.name) -- SetBlipNameFromPlayerString
-    end
-
-    local color = siteCfg.blip.color.open
-    if siteCfg.shop.jobsEnabled then color = siteCfg.blip.color.job end
-    if closed then color = siteCfg.blip.color.closed end
-    Citizen.InvokeNative(0x662D364ABF16DE2F, Sites[site].Blip, joaat(Config.BlipColors[color])) -- BlipAddModifier
-end
-
-function AddNPC(site)
-    local siteCfg = Sites[site]
-    if not siteCfg.NPC then
-        local model = siteCfg.npc.model
-        local hash = joaat(model)
-        LoadModel(hash, model)
-        siteCfg.NPC = CreatePed(hash, siteCfg.npc.coords.x, siteCfg.npc.coords.y, siteCfg.npc.coords.z - 1.0, siteCfg.npc.heading, false, false, false, false)
-        Citizen.InvokeNative(0x283978A15512B2FE, siteCfg.NPC, true) -- SetRandomOutfitVariation
-        SetEntityCanBeDamaged(siteCfg.NPC, false)
-        SetEntityInvincible(siteCfg.NPC, true)
-        Wait(500)
-        FreezeEntityPosition(siteCfg.NPC, true)
-        SetBlockingOfNonTemporaryEvents(siteCfg.NPC, true)
-    end
-end
-
-function RemoveNPC(site)
-    local siteCfg = Sites[site]
-    if siteCfg.NPC then
-        DeleteEntity(siteCfg.NPC)
-        siteCfg.NPC = nil
-    end
-end
-
-function LoadModel(hash, model)
-    if not IsModelValid(hash) then
-        return print('Invalid model:', model)
-    end
-    RequestModel(hash, false)
-    while not HasModelLoaded(hash) do
-        Wait(10)
     end
 end
 
@@ -1151,7 +1239,7 @@ local function orderedPairs(t)
     return orderedNext, t, nil
 end
 
- function FindWagonsByJob(job)
+function FindWagonsByJob(job)
     local matchingWagons = {}
     for _, wagonType in ipairs(Wagons) do
         local matchingModels = {}

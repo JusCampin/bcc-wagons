@@ -6,10 +6,10 @@ lua54 'yes'
 author 'BCC Team'
 
 shared_scripts {
-    'configs/*.lua',
-    'debug_init.lua',
-    'locale.lua',
-    'languages/*.lua'
+    'shared/configs/*.lua',
+    'shared/debug_init.lua',
+    'shared/locale.lua',
+    'shared/languages/*.lua'
 }
 
 client_scripts {

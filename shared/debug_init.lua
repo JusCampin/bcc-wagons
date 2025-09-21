@@ -1,4 +1,3 @@
--- bcc-farming resource debug system (resource-scoped global)
 -- DO NOT MAKE CHANGES TO THIS FILE
 if not BCCWagonsDebug then
     ---@class BCCWagonsDebugLib
@@ -30,7 +29,4 @@ if not BCCWagonsDebug then
     BCCWagonsDebug.Error = createLogger("ERROR", 1)  -- Red
     BCCWagonsDebug.Warning = createLogger("WARNING", 3) -- Yellow
     BCCWagonsDebug.Success = createLogger("SUCCESS", 2) -- Green
-
-    -- Make it globally available
-    _G.BCCWagonsDebug = BCCWagonsDebug
 end
