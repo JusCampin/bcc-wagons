@@ -1,7 +1,3 @@
-local Core = exports.vorp_core:GetCore()
----@type BCCWagonsDebugLib
-local DBG = BCCWagonsDebug
--- Prompts
 local ShopPrompt, ReturnPrompt
 local ShopGroup = GetRandomIntInRange(0, 0xffffff)
 local TradePrompt
@@ -14,36 +10,39 @@ local ActionPrompt
 local ActionGroup = GetRandomIntInRange(0, 0xffffff)
 local PromptsStarted, TradePromptsStarted = false, false
 -- Wagons
-local MyEntity, ShopName, ShopEntity, SiteCfg, Speed, Format, HasJob
-local InMenu, IsShopClosed = false, false
+local ShopName, SiteCfg, Speed, Format, HasJob
+local IsShopClosed = false
 local Cam = false
 local IsWainwright = false
-MyWagon, MyWagonId, MyWagonName, MyWagonModel = 0, nil, nil, nil
+local ShopMenu
+local ExpandedWagonId
+local MyWagonsData, ShopWagonsData
+local CameraLighting
 WagonCfg, RepairLevel = {}, 0
 IsWagonDamaged, IsBrakeSet, Trading = false, false, false
 
 local function StartPrompts()
-    DBG.Info('Starting main prompts...')
+    DBG:Info('Starting main prompts...')
 
     if PromptsStarted then
-        DBG.Success('Prompts are already started')
+        DBG:Success('Prompts are already started')
         return true
     end
 
     if not ShopGroup or not LootGroup then
-        DBG.Error('Prompt groups are not initialized')
+        DBG:Error('Prompt groups are not initialized')
         return false
     end
 
     if not Config.keys.shop or not Config.keys.ret or not Config.keys.loot then
-        DBG.Error('One or more key bindings for prompts are missing in the configuration')
+        DBG:Error('One or more key bindings for prompts are missing in the configuration')
         return false
     end
 
     ShopPrompt = UiPromptRegisterBegin()
-    DBG.Info('Creating ShopPrompt...')
+    DBG:Info('Creating ShopPrompt...')
     if not ShopPrompt or ShopPrompt == 0 then
-        DBG.Error('Failed to register ShopPrompt')
+        DBG:Error('Failed to register ShopPrompt')
         return false
     end
     UiPromptSetControlAction(ShopPrompt, Config.keys.shop)
@@ -54,9 +53,9 @@ local function StartPrompts()
     UiPromptRegisterEnd(ShopPrompt)
 
     ReturnPrompt = UiPromptRegisterBegin()
-    DBG.Info('Creating ReturnPrompt...')
+    DBG:Info('Creating ReturnPrompt...')
     if not ReturnPrompt or ReturnPrompt == 0 then
-        DBG.Error('Failed to register ReturnPrompt')
+        DBG:Error('Failed to register ReturnPrompt')
         return false
     end
     UiPromptSetControlAction(ReturnPrompt, Config.keys.ret)
@@ -67,9 +66,9 @@ local function StartPrompts()
     UiPromptRegisterEnd(ReturnPrompt)
 
     LootPrompt = UiPromptRegisterBegin()
-    DBG.Info('Creating LootPrompt...')
+    DBG:Info('Creating LootPrompt...')
     if not LootPrompt or LootPrompt == 0 then
-        DBG.Error('Failed to register LootPrompt')
+        DBG:Error('Failed to register LootPrompt')
         return false
     end
     UiPromptSetControlAction(LootPrompt, Config.keys.loot)
@@ -81,7 +80,7 @@ local function StartPrompts()
     UiPromptRegisterEnd(LootPrompt)
 
     PromptsStarted = true
-    DBG.Success('Main prompts started successfully')
+    DBG:Success('Main prompts started successfully')
     return true
 end
 
@@ -139,24 +138,24 @@ end
 local function LoadModel(model, modelName)
     -- Validate input
     if not model or not modelName then
-        DBG.Error(('Invalid model or modelName for LoadModel: %s, %s'):format(tostring(model), tostring(modelName)))
+        DBG:Error(('Invalid model or modelName for LoadModel: %s, %s'):format(tostring(model), tostring(modelName)))
         return false
     end
 
     -- Check if model is already loaded
     if HasModelLoaded(model) then
-        DBG.Success(('Model already loaded: %s'):format(tostring(modelName)))
+        DBG:Success(('Model already loaded: %s'):format(tostring(modelName)))
         return true
     end
 
     -- Check if model is valid
     if not IsModelValid(model) then
-        DBG.Error(('Invalid model: %s'):format(tostring(modelName)))
+        DBG:Error(('Invalid model: %s'):format(tostring(modelName)))
         return false
     end
 
     -- Request model
-    DBG.Info(('Requesting model: %s'):format(tostring(modelName)))
+    DBG:Info(('Requesting model: %s'):format(tostring(modelName)))
     RequestModel(model, false)
 
     -- Set timeout (5 seconds)
@@ -167,13 +166,13 @@ local function LoadModel(model, modelName)
     while not HasModelLoaded(model) do
         -- Check for timeout
         if GetGameTimer() - startTime > timeout then
-            DBG.Error(('Timeout while loading model: %s'):format(tostring(modelName)))
+            DBG:Error(('Timeout while loading model: %s'):format(tostring(modelName)))
             return false
         end
         Wait(10)
     end
 
-    DBG.Success(('Model loaded successfully: %s'):format(tostring(modelName)))
+    DBG:Success(('Model loaded successfully: %s'):format(tostring(modelName)))
     return true
 end
 
@@ -181,39 +180,39 @@ end
 local function AddNPC(site)
     -- Validate site configuration
     if not site then
-        DBG.Error(('Invalid site: %s'):format(tostring(site)))
+        DBG:Error(('Invalid site: %s'):format(tostring(site)))
         return false
     end
 
     local siteCfg = Sites[site]
     if not siteCfg or not siteCfg.npc then
-        DBG.Error(('Invalid site configuration for: %s'):format(tostring(site)))
+        DBG:Error(('Invalid site configuration for: %s'):format(tostring(site)))
         return false
     end
 
     -- Check if NPC already exists
     if siteCfg.NPC then
-        DBG.Warning(('NPC already exists for site: %s'):format(tostring(site)))
+        DBG:Warning(('NPC already exists for site: %s'):format(tostring(site)))
         return true
     end
 
     -- Validate NPC coordinates and model
     local coords = siteCfg.npc.coords
     if not coords then
-        DBG.Error(('Invalid NPC coordinates for site: %s'):format(tostring(site)))
+        DBG:Error(('Invalid NPC coordinates for site: %s'):format(tostring(site)))
         return false
     end
 
     local modelName = siteCfg.npc.model
     if not modelName then
-        DBG.Error(('Invalid NPC model for site: %s'):format(tostring(site)))
+        DBG:Error(('Invalid NPC model for site: %s'):format(tostring(site)))
         return false
     end
 
     -- Load model and create the NPC
     local model = joaat(modelName)
     if not LoadModel(model, modelName) then
-        DBG.Error(('Failed to load NPC model for site: %s'):format(tostring(site)))
+        DBG:Error(('Failed to load NPC model for site: %s'):format(tostring(site)))
         return false
     end
 
@@ -221,7 +220,7 @@ local function AddNPC(site)
     siteCfg.NPC = CreatePed(model, coords.x, coords.y, coords.z, siteCfg.npc.heading, false, false, false, false)
 
     if not siteCfg.NPC or not DoesEntityExist(siteCfg.NPC) then
-        DBG.Error(('Failed to create NPC for site: %s'):format(tostring(site)))
+        DBG:Error(('Failed to create NPC for site: %s'):format(tostring(site)))
         return false
     end
 
@@ -235,7 +234,7 @@ local function AddNPC(site)
     FreezeEntityPosition(siteCfg.NPC, true)
     SetBlockingOfNonTemporaryEvents(siteCfg.NPC, true)
 
-    DBG.Info(('Successfully added NPC for site: %s, Model: %s'):format(tostring(site), tostring(modelName)))
+    DBG:Info(('Successfully added NPC for site: %s, Model: %s'):format(tostring(site), tostring(modelName)))
     return true
 end
 
@@ -244,26 +243,26 @@ end
 local function RemoveNPC(site)
     -- Validate site input
     if not site then
-        DBG.Error(('Invalid site: %s'):format(tostring(site)))
+        DBG:Error(('Invalid site: %s'):format(tostring(site)))
         return false
     end
 
     -- Check if site configuration exists
     local siteCfg = Sites[site]
     if not siteCfg then
-        DBG.Error(('Site configuration not found: %s'):format(tostring(site)))
+        DBG:Error(('Site configuration not found: %s'):format(tostring(site)))
         return false
     end
 
     -- Check if NPC exists
     if not siteCfg.NPC then
-        DBG.Info(('No NPC to remove for site: %s'):format(tostring(site)))
+        DBG:Info(('No NPC to remove for site: %s'):format(tostring(site)))
         return true -- Site is valid, but no NPC exists (no-op)
     end
 
     -- Check if the entity exists before deletion
     if not DoesEntityExist(siteCfg.NPC) then
-        DBG.Warning(('NPC entity does not exist for site: %s'):format(tostring(site)))
+        DBG:Warning(('NPC entity does not exist for site: %s'):format(tostring(site)))
         siteCfg.NPC = nil -- Clean up reference
         return true -- Site is valid, but entity was already gone
     end
@@ -272,7 +271,7 @@ local function RemoveNPC(site)
     DeleteEntity(siteCfg.NPC)
     siteCfg.NPC = nil
 
-    DBG.Info(('Successfully removed NPC for site: %s'):format(tostring(site)))
+    DBG:Info(('Successfully removed NPC for site: %s'):format(tostring(site)))
     return true
 end
 
@@ -280,14 +279,14 @@ RegisterNetEvent('vorp:SelectedCharacter', function()
     TriggerEvent('bcc-wagons:StartMainThread')
 end)
 
-if Config.devMode.active then
-    RegisterCommand(Config.devMode.command, function()
+if Config.development.enabled then
+    RegisterCommand(Config.commands.wagonReload, function()
         TriggerEvent('bcc-wagons:StartMainThread')
     end, false)
 end
 
 AddEventHandler('bcc-wagons:StartMainThread', function()
-    DBG.Info('Starting main thread')
+    DBG:Info('Starting main thread')
 
     CreateThread(function()
         StartPrompts()
@@ -378,14 +377,14 @@ end)
 local function CreateCamera()
     -- Validate SiteCfg
     if not SiteCfg or not SiteCfg.wagon or not SiteCfg.wagon.camera or not SiteCfg.wagon.coords then
-        DBG.Error('Invalid SiteCfg for camera creation.')
+        DBG:Error('Invalid SiteCfg for camera creation.')
         return false
     end
 
     -- Create camera
     local wagonCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
     if not wagonCam or not DoesCamExist(wagonCam) then
-        DBG.Error('Failed to create camera for wagon menu.')
+        DBG:Error('Failed to create camera for wagon menu.')
         return false
     end
 
@@ -405,7 +404,7 @@ local function CreateCamera()
      -- Play sound effect
     Citizen.InvokeNative(0x67C540AA08E4A6F5, 'Leaderboard_Show', 'MP_Leaderboard_Sounds', true, 0) -- PlaySoundFrontend
 
-    DBG.Info('Successfully created and configured wagon shop camera.')
+    DBG:Info('Successfully created and configured wagon shop camera.')
     return true
 end
 
@@ -413,7 +412,7 @@ end
 function OpenMenu(site)
     -- Validate site input
     if not site then
-        DBG.Error('Invalid site provided to OpenMenu.')
+        DBG:Error('Invalid site provided to OpenMenu.')
         return
     end
 
@@ -428,7 +427,7 @@ function OpenMenu(site)
 
     -- Create camera and open wagon menu
     if not CreateCamera() then
-        DBG.Error('Failed to create camera for wagon menu.')
+        DBG:Error('Failed to create camera for wagon menu.')
         InMenu = false
         DisplayRadar(true)
         ClearPedTasksImmediately(PlayerPedId())
@@ -438,188 +437,279 @@ function OpenMenu(site)
     WagonMenu()
 end
 
-function WagonMenu()
-    -- Clean up any existing shop entity
-    if ShopEntity and DoesEntityExist(ShopEntity) then
-        DeleteEntity(ShopEntity)
-        ShopEntity = nil
-        DBG.Info('Deleted existing shop entity.')
-    end
+local MenuStyles = {
+    header = { ['color'] = '#999' },
+    subheader = { ['font-size'] = '1.778vmin', ['color'] = '#CC9900' },
+    text = { ['color'] = '#C0C0C0', ['font-size'] = '1.481vmin', ['font-variant'] = 'small-caps' },
+    button = { ['color'] = '#E0E0E0' },
+    success = { ['color'] = '#66CC66' },
+    danger = { ['color'] = '#CC3333' }
+}
 
-    -- Fetch player's wagons and job
-    local result = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
-    if not result then
-        DBG.Error('Failed to fetch wagon data.')
-        return
-    end
-
-    local wagonData = result[1]
-    local job = result[2]
-
-    -- Filter wagons by job
-    local jobMatchedWagons = FindWagonsByJob(job)
-    if not jobMatchedWagons then
-        DBG.Warning('No wagons found for filtering.')
-        jobMatchedWagons = {} -- Fallback to empty table
-    end
-
-    -- Validate both wagonData and jobMatchedWagons before sending to NUI
-    if not wagonData then
-        DBG.Warning('No wagon data available to display.')
-        return
-    end
-
-    if not next(jobMatchedWagons) then -- Check if jobMatchedWagons is empty
-        DBG.Warning('No job-matched wagons available to display.')
-        return
-    end
-
-    -- Send data to NUI if wagon data exists
-    SendNUIMessage({
-        action = 'show',
-        shopData = jobMatchedWagons,
-        translations = Translations,
-        location = ShopName,
-        myWagonsData = wagonData,
-        currencyType = Config.currencyType
-    })
-    SetNuiFocus(true, true)
-    DBG.Info('Opened wagon menu with NUI focus.')
+local function AddShopHeader(page, subtitle)
+    page:RegisterElement('header', { value = ShopName, slot = 'header', style = MenuStyles.header })
+    page:RegisterElement('subheader', { value = subtitle, slot = 'header', style = MenuStyles.subheader })
+    page:RegisterElement('line', { slot = 'header' })
 end
 
-local function CameraLighting()
+local function AddShopButton(page, id, label, slot, callback, style)
+    return page:RegisterElement('button', {
+        id = id, label = label, slot = slot or 'content', style = style or MenuStyles.button
+    }, callback)
+end
+
+local function AddShopFooter(page)
+    page:RegisterElement('bottomline', { slot = 'footer' })
+end
+
+local function RegisterShopPage(key)
+    local page = ShopMenu:RegisterPage(key)
+    ShopPages[key] = page
+    return page
+end
+
+local function OpenShopPage(key)
+    if ShopPages[key] then ShopPages[key]:RouteTo() end
+end
+
+local function ClearShopPreview()
+    if ShopEntity and DoesEntityExist(ShopEntity) then DeleteEntity(ShopEntity) end
+    if MyEntity and DoesEntityExist(MyEntity) then DeleteEntity(MyEntity) end
+    ShopEntity, MyEntity = nil, nil
+end
+
+local function CloseShopMenu()
+    ClearShopPreview()
+    Cam = false
+    DestroyAllCams(true)
+    ClearPedTasksImmediately(PlayerPedId())
+    DisplayRadar(true)
+    InMenu = false
+    ShopPages = {}
+    ExpandedWagonId = nil
+end
+
+local function PreviewShopWagon(model, owned)
+    ClearShopPreview()
+    local hash = joaat(model)
+    LoadModel(hash, model)
+    local entity = CreateVehicle(hash, SiteCfg.wagon.coords, SiteCfg.wagon.heading, false, false, false, false)
+    Citizen.InvokeNative(0x7263332501E07F52, entity, true)
+    Citizen.InvokeNative(0x7D9EFB7AD6B19754, entity, true)
+    SetModelAsNoLongerNeeded(hash)
+    if owned then MyEntity = entity else ShopEntity = entity end
+    if not Cam then
+        Cam = true
+        CameraLighting()
+    end
+end
+
+local BuildOwnedWagonsPage, BuildCatalogPage
+
+local function AddCommonFooter(page, ownedPage)
+    AddShopFooter(page)
+    AddShopButton(page, 'rotate', Translations.rotateText or 'Rotate', 'footer', function()
+        Rotation(-1)
+    end)
+    AddShopButton(page, 'switch_section', ownedPage and (Translations.shopButton or 'Wagon Shop')
+        or (Translations.wagonButton or 'My Wagons'), 'footer', function()
+        if ownedPage then BuildCatalogPage() else BuildOwnedWagonsPage() end
+    end)
+end
+
+local function RefreshShopMenu(showOwned)
+    local result = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
+    if not result or not result[1] then
+        DBG:Error('Failed to fetch wagon data.')
+        return false
+    end
+    MyWagonsData = result[1]
+    ShopWagonsData = FindWagonsByJob(result[2]) or {}
+    ExpandedWagonId = nil
+    ClearShopPreview()
+    if showOwned then BuildOwnedWagonsPage() else BuildCatalogPage() end
+    return true
+end
+
+local function BuildRenamePage(wagon)
+    local page = RegisterShopPage('rename_wagon')
+    local newName = wagon.name or ''
+    AddShopHeader(page, Translations.renamePersonalWagon or 'Rename')
+    page:RegisterElement('input', {
+        id = 'wagon_name', label = _U('nameWagon'), slot = 'content', value = newName, placeholder = _U('nameWagon')
+    }, function(data) newName = data.value or '' end)
+    AddShopButton(page, 'rename_confirm', _U('confirm'), 'content', function()
+        newName = newName:match('^%s*(.-)%s*$') or ''
+        if newName == '' then return end
+        if Core.Callback.TriggerAwait('bcc-wagons:UpdateWagonName', { wagonId = wagon.id }, newName) then
+            RefreshShopMenu(true)
+        end
+    end, MenuStyles.success)
+    AddShopFooter(page)
+    AddShopButton(page, 'rename_back', _U('back'), 'footer', function() OpenShopPage('owned_wagons') end)
+    OpenShopPage('rename_wagon')
+end
+
+local function BuildSellPage(wagon)
+    local page = RegisterShopPage('sell_wagon')
+    AddShopHeader(page, Translations.sellPersonalWagon or 'Sell')
+    page:RegisterElement('textdisplay', {
+        id = 'sell_confirmation', value = Translations.sellConfirmation or 'Are you sure you want to sell?',
+        slot = 'content', style = MenuStyles.text
+    })
+    AddShopButton(page, 'sell_confirm', Translations.sellConfirmationButton or 'Sell', 'content', function()
+        ClearShopPreview()
+        if Core.Callback.TriggerAwait('bcc-wagons:SellMyWagon', {
+            wagonId = wagon.id, wagonModel = wagon.model, wagonName = wagon.name
+        }) then
+            RefreshShopMenu(true)
+        end
+    end, MenuStyles.danger)
+    AddShopFooter(page)
+    AddShopButton(page, 'sell_cancel', Translations.sellConfirmationCancelButton or _U('back'), 'footer', function()
+        OpenShopPage('owned_wagons')
+    end)
+    OpenShopPage('sell_wagon')
+end
+
+BuildOwnedWagonsPage = function()
+    local page = RegisterShopPage('owned_wagons')
+    AddShopHeader(page, Translations.wagonButton or 'My Wagons')
+    if not MyWagonsData or #MyWagonsData == 0 then
+        page:RegisterElement('textdisplay', {
+            id = 'no_wagons', value = Translations.noPersonalWagon or 'No Wagons, head to the Shop!',
+            slot = 'content', style = MenuStyles.text
+        })
+    else
+        for _, wagon in ipairs(MyWagonsData) do
+            local current = wagon
+            local expanded = tonumber(ExpandedWagonId) == tonumber(current.id)
+            local label = current.name or ('Wagon #' .. tostring(current.id))
+            if tonumber(current.selected) == 1 then label = label .. ' (Active)' end
+            AddShopButton(page, 'owned_' .. current.id, expanded and (label .. ' -') or label, 'content', function()
+                if tonumber(ExpandedWagonId) == tonumber(current.id) then
+                    ExpandedWagonId = nil
+                else
+                    ExpandedWagonId = current.id
+                    TriggerServerEvent('bcc-wagons:SelectWagon', { wagonId = current.id })
+                    for _, owned in ipairs(MyWagonsData) do owned.selected = tonumber(owned.id) == tonumber(current.id) and 1 or 0 end
+                    PreviewShopWagon(current.model, true)
+                end
+                BuildOwnedWagonsPage()
+                OpenShopPage('owned_wagons')
+            end, expanded and MenuStyles.subheader or MenuStyles.button)
+            if expanded then
+                AddShopButton(page, 'spawn_' .. current.id, '    ' .. (Translations.spawnPersonalWagon or 'Spawn'), 'content', function()
+                    ShopMenu:Close()
+                    SpawnWagon(current.model, current.name, true, current.id)
+                end, MenuStyles.success)
+                AddShopButton(page, 'rename_' .. current.id, '    ' .. (Translations.renamePersonalWagon or 'Rename'), 'content', function()
+                    BuildRenamePage(current)
+                end)
+                AddShopButton(page, 'sell_' .. current.id, '    ' .. (Translations.sellPersonalWagon or 'Sell'), 'content', function()
+                    BuildSellPage(current)
+                end, MenuStyles.danger)
+            end
+        end
+    end
+    AddCommonFooter(page, true)
+    OpenShopPage('owned_wagons')
+end
+
+local function BuildPurchasePage(model, wagon)
+    local page = RegisterShopPage('purchase_wagon')
+    local useCash = Config.currencyType ~= 1
+    local wagonName = ''
+    AddShopHeader(page, wagon.label)
+    local priceText = page:RegisterElement('textdisplay', {
+        id = 'purchase_price', value = useCash and ('$' .. wagon.cashPrice) or (wagon.goldPrice .. ' gold'),
+        slot = 'content', style = MenuStyles.text
+    })
+    if Config.currencyType > 1 then
+        page:RegisterElement('arrows', {
+            id = 'purchase_currency', label = 'Currency', slot = 'content', start = 1, persist = true,
+            options = { { display = 'Cash', extra = true }, { display = 'Gold', extra = false } }
+        }, function(data)
+            useCash = data.value.extra
+            priceText:update({ value = useCash and ('$' .. wagon.cashPrice) or (wagon.goldPrice .. ' gold') })
+        end)
+    end
+    page:RegisterElement('input', {
+        id = 'purchase_name', label = _U('nameWagon'), slot = 'content', value = '', placeholder = _U('nameWagon')
+    }, function(data) wagonName = data.value or '' end)
+    AddShopButton(page, 'purchase_confirm', _U('confirm'), 'content', function()
+        wagonName = wagonName:match('^%s*(.-)%s*$') or ''
+        if wagonName == '' then return end
+        CheckPlayerJob(true, false)
+        if SiteCfg.wainwrightBuy and not IsWainwright then
+            Core.NotifyRightTip(_U('wainwrightBuyWagon'), 4000)
+            return
+        end
+        local data = { Model = model, Cash = wagon.cashPrice, Gold = wagon.goldPrice, IsCash = useCash, isWainwright = IsWainwright }
+        if Core.Callback.TriggerAwait('bcc-wagons:BuyWagon', data)
+            and Core.Callback.TriggerAwait('bcc-wagons:SaveNewWagon', data, wagonName) then
+            RefreshShopMenu(true)
+        end
+    end, MenuStyles.success)
+    AddShopFooter(page)
+    AddShopButton(page, 'purchase_back', _U('back'), 'footer', function() OpenShopPage('catalog') end)
+    OpenShopPage('purchase_wagon')
+end
+
+BuildCatalogPage = function()
+    local page = RegisterShopPage('catalog')
+    AddShopHeader(page, Translations.shopButton or 'Wagon Shop')
+    for typeIndex, wagonType in ipairs(ShopWagonsData or {}) do
+        AddShopButton(page, 'type_' .. typeIndex, wagonType.type, 'content', function()
+            local modelsPage = RegisterShopPage('catalog_models')
+            AddShopHeader(modelsPage, wagonType.type)
+            for model, wagon in pairs(wagonType.models) do
+                local currentModel, current = model, wagon
+                AddShopButton(modelsPage, 'model_' .. currentModel,
+                    ('%s  |  $%s / %s gold'):format(current.label, current.cashPrice, current.goldPrice), 'content', function()
+                    PreviewShopWagon(currentModel, false)
+                    BuildPurchasePage(currentModel, current)
+                end)
+            end
+            AddShopFooter(modelsPage)
+            AddShopButton(modelsPage, 'models_back', _U('back'), 'footer', function() OpenShopPage('catalog') end)
+            OpenShopPage('catalog_models')
+        end)
+    end
+    AddCommonFooter(page, false)
+    OpenShopPage('catalog')
+end
+
+function WagonMenu()
+    ClearShopPreview()
+    local result = Core.Callback.TriggerAwait('bcc-wagons:GetMyWagons')
+    if not result or not result[1] then
+        DBG:Error('Failed to fetch wagon data.')
+        CloseShopMenu()
+        return
+    end
+    MyWagonsData = result[1]
+    ShopWagonsData = FindWagonsByJob(result[2]) or {}
+
+    ShopMenu = FeatherMenu:RegisterMenu('bcc-wagons:shop', {
+        top = '3%', left = '3%', ['720width'] = '400px', ['1080width'] = '500px',
+        ['2kwidth'] = '600px', ['4kwidth'] = '800px', draggable = true, canclose = true,
+        contentslot = { style = { ['height'] = '450px', ['min-height'] = '325px' } }
+    }, {
+        opened = function() InMenu = true DisplayRadar(false) end,
+        closed = function() CloseShopMenu() end
+    })
+    BuildOwnedWagonsPage()
+    ShopMenu:Open({ startupPage = ShopPages.owned_wagons, menuFocus = true, cursorFocus = true, overrideMenu = true, allowKeys = true })
+    DBG:Info('Opened wagon shop with feather-menu.')
+end
+
+CameraLighting = function()
     while Cam do
         Wait(0)
         Citizen.InvokeNative(0xD2D9E04C0DF927F4, SiteCfg.wagon.coords.x, SiteCfg.wagon.coords.y, SiteCfg.wagon.coords.z + 3, 130, 130, 85, 4.0, 15.0) -- DrawLightWithRange
     end
 end
-
-RegisterNUICallback('LoadWagon', function(data, cb)
-    cb('ok')
-    if MyEntity then
-        DeleteEntity(MyEntity)
-        MyEntity = nil
-    end
-
-    local model = data.wagonModel
-    local hash = joaat(model)
-    LoadModel(hash, model)
-
-    if ShopEntity then
-        DeleteEntity(ShopEntity)
-        ShopEntity = nil
-    end
-
-    ShopEntity = CreateVehicle(hash, SiteCfg.wagon.coords, SiteCfg.wagon.heading, false, false, false, false)
-    Citizen.InvokeNative(0x7263332501E07F52, ShopEntity, true) -- SetVehicleOnGroundProperly
-    Citizen.InvokeNative(0x7D9EFB7AD6B19754, ShopEntity, true) -- FreezeEntityPosition
-    SetModelAsNoLongerNeeded(hash)
-    if not Cam then
-        Cam = true
-        CameraLighting()
-    end
-end)
-
-RegisterNUICallback('BuyWagon', function(data, cb)
-    cb('ok')
-    CheckPlayerJob(true, false)
-
-    if SiteCfg.wainwrightBuy and not IsWainwright then
-        Core.NotifyRightTip(_U('wainwrightBuyWagon'), 4000)
-        WagonMenu()
-        return
-    end
-
-    if IsWainwright then
-        data.isWainwright = true
-    else
-        data.isWainwright = false
-    end
-
-    local canBuy = Core.Callback.TriggerAwait('bcc-wagons:BuyWagon', data)
-    if canBuy then
-        SetWagonName(data, false)
-    else
-        WagonMenu()
-    end
-end)
-
-function SetWagonName(data, rename)
-    SendNUIMessage({
-        action = 'hide'
-    })
-    SetNuiFocus(false, false)
-    Wait(200)
-
-    CreateThread(function()
-        AddTextEntry('FMMC_MPM_NA', _U('nameWagon'))
-        DisplayOnscreenKeyboard(1, 'FMMC_MPM_NA', '', '', '', '', '', 30)
-        while UpdateOnscreenKeyboard() == 0 do
-            DisableAllControlActions(0)
-            Wait(0)
-        end
-        if GetOnscreenKeyboardResult() then
-            local wagonName = GetOnscreenKeyboardResult()
-            if string.len(wagonName) > 0 then
-                if not rename then
-                    local wagonSaved = Core.Callback.TriggerAwait('bcc-wagons:SaveNewWagon', data, wagonName)
-                    if wagonSaved then
-                        WagonMenu()
-                    end
-                    return
-                else
-                    local nameSaved = Core.Callback.TriggerAwait('bcc-wagons:UpdateWagonName', data, wagonName)
-                    if nameSaved then
-                        WagonMenu()
-                    end
-                    return
-                end
-            else
-                SetWagonName(data, rename)
-                return
-            end
-        end
-
-        WagonMenu()
-    end)
-end
-
-RegisterNUICallback('RenameWagon', function(data, cb)
-    cb('ok')
-    SetWagonName(data, true)
-end)
-
-RegisterNUICallback('LoadMyWagon', function(data, cb)
-    cb('ok')
-    if ShopEntity then
-        DeleteEntity(ShopEntity)
-        ShopEntity = nil
-    end
-
-    local model = data.wagonModel
-    local hash = joaat(model)
-    LoadModel(hash, model)
-
-    if MyEntity then
-        DeleteEntity(MyEntity)
-        MyEntity = nil
-    end
-
-    MyEntity = CreateVehicle(hash, SiteCfg.wagon.coords, SiteCfg.wagon.heading, false, false, false, false)
-    Citizen.InvokeNative(0x7263332501E07F52, MyEntity, true) -- SetVehicleOnGroundProperly
-    Citizen.InvokeNative(0x7D9EFB7AD6B19754, MyEntity, true) -- FreezeEntityPosition
-    SetModelAsNoLongerNeeded(hash)
-    if not Cam then
-        Cam = true
-        CameraLighting()
-    end
-end)
-
-RegisterNUICallback('SelectWagon', function(data, cb)
-    cb('ok')
-    DBG.Info(('Selecting wagon with ID: %s'):format(data.wagonId))
-    TriggerServerEvent('bcc-wagons:SelectWagon', data)
-end)
 
 function GetSelectedWagon()
     local data = Core.Callback.TriggerAwait('bcc-wagons:GetWagonData')
@@ -636,11 +726,6 @@ local function SetWagonDamaged()
     IsBrakeSet = true
     PromptSetText(BrakePrompt, CreateVarString(10, 'LITERAL_STRING', _U('brakeOff')))
 end
-
-RegisterNUICallback('SpawnData', function(data, cb)
-    cb('ok')
-    SpawnWagon(data.wagonModel, data.wagonName, true, data.wagonId)
-end)
 
 function SpawnWagon(wagonModel, wagonName, menuSpawn, wagonId)
     ResetWagon()
@@ -700,15 +785,15 @@ function SpawnWagon(wagonModel, wagonName, menuSpawn, wagonId)
         end
     end
 
-    if WagonCfg.gamerTag.enabled then
+    if Config.wagonTag.enabled then
         TriggerEvent('bcc-wagons:WagonTag')
     end
 
-    if WagonCfg.blip.enabled then
+    if Config.wagonBlip.enabled then
         TriggerEvent('bcc-wagons:WagonBlip')
     end
 
-    if WagonCfg.brakeSet then
+    if Config.setBrake then
         Citizen.InvokeNative(0x260BE8F09E326A20, MyWagon, 0.0, 2000, true) -- BringVehicleToHalt
         IsBrakeSet = true
     end
@@ -857,7 +942,7 @@ end)
 -- Set Wagon Name Above Wagon
 AddEventHandler('bcc-wagons:WagonTag', function()
     local playerPed = PlayerPedId()
-    local tagDist = WagonCfg.gamerTag.distance
+    local tagDist = Config.wagonTag.distance
     local gamerTagId = Citizen.InvokeNative(0xE961BF23EAB76B12, MyWagon, MyWagonName) -- CreateMpGamerTagOnEntity
     while MyWagon ~= 0 do
         Wait(1000)
@@ -887,61 +972,11 @@ AddEventHandler('bcc-wagons:WagonBlip', function()
         else
             if not wagonBlip then
                 wagonBlip = Citizen.InvokeNative(0x23F74C2FDA6E7C61, -1749618580, MyWagon) -- BlipAddForEntity
-                SetBlipSprite(wagonBlip, joaat(WagonCfg.blip.sprite), true)
+                SetBlipSprite(wagonBlip, joaat(Config.wagonBlip.sprite), true)
                 Citizen.InvokeNative(0x9CB1A1623062F402, wagonBlip, MyWagonName) -- SetBlipName
             end
         end
     end
-end)
-
-RegisterNUICallback('SellWagon', function(data, cb)
-    cb('ok')
-    DeleteEntity(MyEntity)
-    Cam = false
-    local wagonSold = Core.Callback.TriggerAwait('bcc-wagons:SellMyWagon', data)
-    if wagonSold then
-        WagonMenu()
-    end
-end)
-
--- Close Wagon Shop Menu
-RegisterNUICallback('CloseWagon', function(data, cb)
-    cb('ok')
-
-    -- Hide the NUI and release focus
-    SendNUIMessage({ action = 'hide' })
-    SetNuiFocus(false, false)
-
-    -- Play sound effect
-    Citizen.InvokeNative(0x67C540AA08E4A6F5, 'Leaderboard_Hide', 'MP_Leaderboard_Sounds', true, 0) -- PlaySoundFrontend
-
-    -- Clean up shop entity
-    if ShopEntity and DoesEntityExist(ShopEntity) then
-        DeleteEntity(ShopEntity)
-        ShopEntity = nil
-        DBG.Info('Deleted shop entity.')
-    end
-
-    -- Clean up player's wagon entity
-    if MyEntity and DoesEntityExist(MyEntity) then
-        DeleteEntity(MyEntity)
-        MyEntity = nil
-        DBG.Info('Deleted player wagon entity.')
-    end
-
-    -- Clean up camera
-    if Cam then
-        Cam = false
-        DestroyAllCams(true)
-        DBG.Info('Destroyed all script cameras.')
-    end
-
-    -- Restore game state
-    DisplayRadar(true)
-    ClearPedTasksImmediately(PlayerPedId())
-    InMenu = false
-
-    DBG.Info('Successfully closed wagon shop menu.')
 end)
 
 -- Call Selected Wagon
@@ -1045,17 +1080,6 @@ function ResetWagon()
     Trading = false
 end
 
--- Rotate Wagons while Viewing
-RegisterNUICallback('Rotate', function(data, cb)
-    cb('ok')
-    local direction = data.RotateWagon
-    if direction == 'left' then
-        Rotation(1)
-    elseif direction == 'right' then
-        Rotation(-1)
-    end
-end)
-
 function Rotation(dir)
     if MyEntity then
         local ownedRot = GetEntityHeading(MyEntity) + dir
@@ -1115,7 +1139,7 @@ function StartWagonPrompts()
 
     BrakePrompt = UiPromptRegisterBegin()
     UiPromptSetControlAction(BrakePrompt, Config.keys.brake)
-    if WagonCfg.brakeSet then
+    if Config.setBrake then
         UiPromptSetText(BrakePrompt, CreateVarString(10, 'LITERAL_STRING', _U('brakeOff')))
     else
         UiPromptSetText(BrakePrompt, CreateVarString(10, 'LITERAL_STRING', _U('brakeOn')))
@@ -1155,12 +1179,7 @@ AddEventHandler('onResourceStop', function(resourceName)
     if (GetCurrentResourceName() ~= resourceName) then
         return
     end
-    if InMenu then
-        SendNUIMessage({
-            action = 'hide'
-        })
-        SetNuiFocus(false, false)
-    end
+    if InMenu and ShopMenu then ShopMenu:Close() end
     ClearPedTasksImmediately(PlayerPedId())
     DestroyAllCams(true)
     DisplayRadar(true)
