@@ -7,29 +7,29 @@ local DBG = BCCWagonsDebug
 local function CheckPlayerJob(charJob, jobGrade, jobConfig)
     -- Nil checks
     if not charJob or not jobGrade or not jobConfig then
-        DBG.Warning('Job check failed due to nil values in parameters')
+        DBG:Warning('Job check failed due to nil values in parameters')
         return false
     end
 
     -- Validate jobGrade is a number
     if type(jobGrade) ~= 'number' then
-        DBG.Warning('Job check failed: jobGrade is not a number')
+        DBG:Warning('Job check failed: jobGrade is not a number')
         return false
     end
 
     -- Check for empty config
     if #jobConfig == 0 then
-        DBG.Warning('Job check failed: jobConfig is empty')
+        DBG:Warning('Job check failed: jobConfig is empty')
         return false
     end
 
     -- Iterate through job config
     for _, job in ipairs(jobConfig) do
         if charJob:lower() == job.name:lower() and jobGrade >= job.grade then
-            DBG.Success(('Job check passed: %s (grade %d) >= %s (grade %d)'):format(charJob, jobGrade, job.name, job.grade))
+            DBG:Success(('Job check passed: %s (grade %d) >= %s (grade %d)'):format(charJob, jobGrade, job.name, job.grade))
             return true
         end
-        DBG.Warning(('Job check failed: %s (grade %d) vs %s (grade %d)'):format(charJob, jobGrade, job.name, job.grade))
+        DBG:Warning(('Job check failed: %s (grade %d) vs %s (grade %d)'):format(charJob, jobGrade, job.name, job.grade))
     end
 
     return false
@@ -41,7 +41,7 @@ Core.Callback.Register('bcc-wagons:CheckJob', function(source, cb, wainwright, s
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -56,13 +56,13 @@ Core.Callback.Register('bcc-wagons:CheckJob', function(source, cb, wainwright, s
     elseif wainwright and Config.wainwrightJob then
         jobConfig = Config.wainwrightJob
     else
-        DBG.Warning('No valid job config found for site or wainwright.')
+        DBG:Warning('No valid job config found for site or wainwright.')
         return cb(false)
     end
 
     -- Check if the player meets the job requirements
     if not CheckPlayerJob(charJob, jobGrade, jobConfig) then
-        DBG.Warning(('Player %s (job: %s, grade: %d) does not meet job requirements.'):format(
+        DBG:Warning(('Player %s (job: %s, grade: %d) does not meet job requirements.'):format(
             tostring(character.identifier),
             tostring(charJob),
             tonumber(jobGrade)
@@ -70,7 +70,7 @@ Core.Callback.Register('bcc-wagons:CheckJob', function(source, cb, wainwright, s
         return cb(false)
     end
 
-    DBG.Success(('User %s has the required job (%s) and grade (%d).'):format(
+    DBG:Success(('User %s has the required job (%s) and grade (%d).'):format(
         tostring(character.identifier),
         tostring(charJob),
         tonumber(jobGrade)
@@ -84,7 +84,7 @@ Core.Callback.Register('bcc-wagons:BuyWagon', function(source, cb, data)
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -97,7 +97,7 @@ Core.Callback.Register('bcc-wagons:BuyWagon', function(source, cb, data)
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { charid })
     if #wagons >= maxWagons then
         Core.NotifyRightTip(src, _U('wagonLimit') .. tostring(maxWagons) .. _U('wagons'), 4000)
-        DBG.Warning(('Player %s reached wagon limit (%d)'):format(tostring(charid), maxWagons))
+        DBG:Warning(('Player %s reached wagon limit (%d)'):format(tostring(charid), maxWagons))
         return cb(false)
     end
 
@@ -114,7 +114,7 @@ Core.Callback.Register('bcc-wagons:BuyWagon', function(source, cb, data)
     end
 
     if not wagonConfig then
-        DBG.Error(('Invalid wagon model for BuyWagon: %s'):format(tostring(model)))
+        DBG:Error(('Invalid wagon model for BuyWagon: %s'):format(tostring(model)))
         return cb(false)
     end
 
@@ -124,20 +124,20 @@ Core.Callback.Register('bcc-wagons:BuyWagon', function(source, cb, data)
     local currencyName = data.IsCash and 'cash' or 'gold'
 
     if not price then
-        DBG.Error(('Invalid price for wagon model %s (currency: %s)'):format(tostring(model), currencyName))
+        DBG:Error(('Invalid price for wagon model %s (currency: %s)'):format(tostring(model), currencyName))
         return cb(false)
     end
 
     if character[currencyType] < price then
         Core.NotifyRightTip(src, data.IsCash and _U('shortCash') or _U('shortGold'), 4000)
-        DBG.Warning(('Player %s lacks %s (%d needed, %d available)'):format(
+        DBG:Warning(('Player %s lacks %s (%d needed, %d available)'):format(
             tostring(charid), currencyName, price, character[currencyType]
         ))
         return cb(false)
     end
 
     -- Everything is valid, proceed to purchase
-    DBG.Info(('Player %s can purchase wagon %s for %d %s'):format(
+    DBG:Info(('Player %s can purchase wagon %s for %d %s'):format(
         tostring(charid), tostring(model), price, currencyName
     ))
     return cb(true)
@@ -149,7 +149,7 @@ Core.Callback.Register('bcc-wagons:SaveNewWagon', function(source, cb, data, nam
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -171,7 +171,7 @@ Core.Callback.Register('bcc-wagons:SaveNewWagon', function(source, cb, data, nam
     end
 
     if not wagonConfig then
-        DBG.Error(('Invalid wagon model for SaveNewWagon: %s'):format(tostring(model)))
+        DBG:Error(('Invalid wagon model for SaveNewWagon: %s'):format(tostring(model)))
         return cb(false)
     end
 
@@ -186,14 +186,14 @@ Core.Callback.Register('bcc-wagons:SaveNewWagon', function(source, cb, data, nam
     end
 
     if not price then
-        DBG.Error(('Invalid price for wagon model %s (currency: %s)'):format(tostring(model), currencyName))
+        DBG:Error(('Invalid price for wagon model %s (currency: %s)'):format(tostring(model), currencyName))
         return cb(false)
     end
 
     -- Check currency again (just in case)
     if (data.IsCash and character.money < price) or (not data.IsCash and character.gold < price) then
         Core.NotifyRightTip(src, data.IsCash and _U('shortCash') or _U('shortGold'), 4000)
-        DBG.Warning(('Player %s lacks %s (%d needed, %d available)'):format(
+        DBG:Warning(('Player %s lacks %s (%d needed, %d available)'):format(
             tostring(identifier), currencyName, price, data.IsCash and character.money or character.gold
         ))
         return cb(false)
@@ -201,7 +201,7 @@ Core.Callback.Register('bcc-wagons:SaveNewWagon', function(source, cb, data, nam
 
     -- Deduct currency
     character.removeCurrency(data.IsCash and 0 or 1, price)
-    DBG.Info(('Deducted %d %s from player %s for wagon %s'):format(
+    DBG:Info(('Deducted %d %s from player %s for wagon %s'):format(
         price, currencyName, tostring(identifier), tostring(model)
     ))
 
@@ -211,7 +211,7 @@ Core.Callback.Register('bcc-wagons:SaveNewWagon', function(source, cb, data, nam
         'INSERT INTO `player_wagons` (`identifier`, `charid`, `name`, `model`, `condition`) VALUES (?, ?, ?, ?, ?)',
         { identifier, charid, name, model, condition }
     )
-    DBG.Info(('Wagon saved: %s (ID: %s, CharID: %s, Name: %s)'):format(
+    DBG:Info(('Wagon saved: %s (ID: %s, CharID: %s, Name: %s)'):format(
         tostring(model), tostring(identifier), tostring(charid), tostring(name)
     ))
 
@@ -237,7 +237,7 @@ Core.Callback.Register('bcc-wagons:UpdateWagonName', function(source, cb, data, 
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -247,7 +247,7 @@ Core.Callback.Register('bcc-wagons:UpdateWagonName', function(source, cb, data, 
     local wagonId = tonumber(data.wagonId)
 
     if not wagonId then
-        DBG.Error(('Invalid wagon ID for UpdateWagonName: %s'):format(tostring(data.wagonId)))
+        DBG:Error(('Invalid wagon ID for UpdateWagonName: %s'):format(tostring(data.wagonId)))
         return cb(false)
     end
 
@@ -257,7 +257,7 @@ Core.Callback.Register('bcc-wagons:UpdateWagonName', function(source, cb, data, 
     )
 
     if not wagon or #wagon == 0 then
-        DBG.Error(('Wagon not found or does not belong to player: ID %d, CharID %s, Identifier %s'):format(
+        DBG:Error(('Wagon not found or does not belong to player: ID %d, CharID %s, Identifier %s'):format(
             wagonId, tostring(charid), tostring(identifier)
         ))
         return cb(false)
@@ -268,7 +268,7 @@ Core.Callback.Register('bcc-wagons:UpdateWagonName', function(source, cb, data, 
         { name, charid, identifier, wagonId }
     )
 
-    DBG.Info(('Updated wagon name: ID %d, CharID %s, New Name: %s'):format(
+    DBG:Info(('Updated wagon name: ID %d, CharID %s, New Name: %s'):format(
         wagonId, tostring(charid), tostring(name)
     ))
 
@@ -281,7 +281,7 @@ RegisterNetEvent('bcc-wagons:SelectWagon', function(data)
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return
     end
 
@@ -289,12 +289,12 @@ RegisterNetEvent('bcc-wagons:SelectWagon', function(data)
     local charid = character.charIdentifier
     local id = data.wagonId
 
-    DBG.Info(('Selecting wagon ID: %s for character ID: %s'):format(id, charid))
+    DBG:Info(('Selecting wagon ID: %s for character ID: %s'):format(id, charid))
 
     -- Check if the wagon exists and belongs to the character
     local wagon = MySQL.query.await('SELECT 1 FROM `player_wagons` WHERE `charid` = ? AND `id` = ?', { charid, id })
     if #wagon == 0 then
-        DBG.Error(('Wagon not found or does not belong to character. Wagon ID: %s, Char ID: %s'):format(id, charid))
+        DBG:Error(('Wagon not found or does not belong to character. Wagon ID: %s, Char ID: %s'):format(id, charid))
         return
     end
 
@@ -305,9 +305,9 @@ RegisterNetEvent('bcc-wagons:SelectWagon', function(data)
 
     -- Log success
     if deselected ~= nil and selected ~= nil then
-        DBG.Success(('Updated wagon selection. Deselected: %d, Selected: %d'):format(deselected, selected))
+        DBG:Success(('Updated wagon selection. Deselected: %d, Selected: %d'):format(deselected, selected))
     else
-        DBG.Error('Failed to update wagon selection in database.')
+        DBG:Error('Failed to update wagon selection in database.')
     end
 end)
 
@@ -317,7 +317,7 @@ Core.Callback.Register('bcc-wagons:GetWagonData', function(source, cb)
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -328,7 +328,7 @@ Core.Callback.Register('bcc-wagons:GetWagonData', function(source, cb)
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { charid })
     if not wagons or #wagons == 0 then
         Core.NotifyRightTip(src, _U('noOwnedWagons'), 4000)
-        DBG.Warning(('Player %s has no owned wagons'):format(tostring(charid)))
+        DBG:Warning(('Player %s has no owned wagons'):format(tostring(charid)))
         return cb(false)
     end
 
@@ -343,7 +343,7 @@ Core.Callback.Register('bcc-wagons:GetWagonData', function(source, cb)
 
     if not selectedWagon then
         Core.NotifyRightTip(src, _U('noSelectedWagon'), 4000)
-        DBG.Warning(('Player %s has no selected wagon'):format(tostring(charid)))
+        DBG:Warning(('Player %s has no selected wagon'):format(tostring(charid)))
         return cb(false)
     end
 
@@ -357,7 +357,7 @@ Core.Callback.Register('bcc-wagons:GetWagonData', function(source, cb)
         id = selectedWagon.id
     }
 
-    DBG.Info(('Retrieved selected wagon for player %s: ID %d, Model %s, Name %s'):format(
+    DBG:Info(('Retrieved selected wagon for player %s: ID %d, Model %s, Name %s'):format(
         tostring(charid), selectedWagon.id, selectedWagon.model, selectedWagon.name
     ))
 
@@ -370,7 +370,7 @@ Core.Callback.Register('bcc-wagons:GetMyWagons', function(source, cb)
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -383,11 +383,11 @@ Core.Callback.Register('bcc-wagons:GetMyWagons', function(source, cb)
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ? AND `identifier` = ?', { charid, identifier })
 
     if not wagons then
-        DBG.Error(('Failed to fetch wagons for player: %s'):format(tostring(identifier)))
+        DBG:Error(('Failed to fetch wagons for player: %s'):format(tostring(identifier)))
         return cb({false, charJob})
     end
 
-    DBG.Info(('Fetched %d wagons for player: %s'):format(#wagons, tostring(identifier)))
+    DBG:Info(('Fetched %d wagons for player: %s'):format(#wagons, tostring(identifier)))
     cb({wagons, charJob})
 end)
 
@@ -397,7 +397,7 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -409,7 +409,7 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
     -- Fetch wagons for the character
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { charid })
     if not wagons or #wagons == 0 then
-        DBG.Error(('No wagons found for character ID: %s'):format(tostring(charid)))
+        DBG:Error(('No wagons found for character ID: %s'):format(tostring(charid)))
         return cb(false)
     end
 
@@ -422,7 +422,7 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
     end
 
     if not modelWagon then
-        DBG.Error(('Wagon ID %d not found for character ID %s'):format(id, tostring(charid)))
+        DBG:Error(('Wagon ID %d not found for character ID %s'):format(id, tostring(charid)))
         return cb(false)
     end
 
@@ -432,7 +432,7 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
         for model, wagonConfig in pairs(wagonTypes.models) do
             if model == modelWagon then
                 if not wagonConfig.price or not wagonConfig.price.cash then
-                    DBG.Error(('Invalid wagon config for model %s (missing price)'):format(tostring(modelWagon)))
+                    DBG:Error(('Invalid wagon config for model %s (missing price)'):format(tostring(modelWagon)))
                     return cb(false)
                 end
                 sellPrice = math.floor(Config.sellPrice * wagonConfig.price.cash)
@@ -442,7 +442,7 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
     end
 
     if sellPrice <= 0 then
-        DBG.Error(('Invalid sell price for wagon model %s'):format(tostring(modelWagon)))
+        DBG:Error(('Invalid sell price for wagon model %s'):format(tostring(modelWagon)))
         return cb(false)
     end
 
@@ -451,7 +451,7 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
 
     -- Delete the wagon
     MySQL.query.await('DELETE FROM `player_wagons` WHERE `charid` = ? AND `id` = ?', { charid, id })
-    DBG.Info(('Deleted wagon ID %d for character ID %s after successful sale'):format(id, tostring(charid)))
+    DBG:Info(('Deleted wagon ID %d for character ID %s after successful sale'):format(id, tostring(charid)))
 
     -- Send Discord notification
     Discord:sendMessage(string.format(
@@ -466,7 +466,7 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
 
     -- Notify player
     Core.NotifyRightTip(src, _U('soldWagon') .. data.wagonName .. _U('frcash') .. tostring(sellPrice), 4000)
-    DBG.Info(('Wagon sold: ID %d, Model %s, Price $%d'):format(id, modelWagon, sellPrice))
+    DBG:Info(('Wagon sold: ID %d, Model %s, Price $%d'):format(id, modelWagon, sellPrice))
     return cb(true)
 end)
 
@@ -476,7 +476,7 @@ Core.Callback.Register('bcc-wagons:SaveWagonTrade', function(source, cb, serverI
     local curUser = Core.getUser(src)
     -- Check if the user exists
     if not curUser then
-        DBG.Error(('Current user not found for source: %s'):format(tostring(src)))
+        DBG:Error(('Current user not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
     local curOwner = curUser.getUsedCharacter
@@ -486,7 +486,7 @@ Core.Callback.Register('bcc-wagons:SaveWagonTrade', function(source, cb, serverI
     local newUser = Core.getUser(serverId)
     -- Check if the user exists
     if not newUser then
-        DBG.Error(('New user not found for server ID: %s'):format(tostring(serverId)))
+        DBG:Error(('New user not found for server ID: %s'):format(tostring(serverId)))
         return cb(false)
     end
     local newOwner = newUser.getUsedCharacter
@@ -504,14 +504,14 @@ Core.Callback.Register('bcc-wagons:SaveWagonTrade', function(source, cb, serverI
     local wagons = MySQL.query.await('SELECT * FROM `player_wagons` WHERE `charid` = ?', { newOwnerCharId })
     if #wagons >= maxWagons then
         Core.NotifyRightTip(src, _U('tradeFailed') .. newOwnerName .. _U('tooManyWagons'), 5000)
-        DBG.Warning(('Trade failed: New owner %s has reached wagon limit (%d)'):format(newOwnerName, maxWagons))
+        DBG:Warning(('Trade failed: New owner %s has reached wagon limit (%d)'):format(newOwnerName, maxWagons))
         return cb(false)
     end
 
     -- Check if the wagon exists and belongs to the current owner
     local wagon = MySQL.query.await('SELECT 1 FROM `player_wagons` WHERE `id` = ? AND `charid` = ?', { wagonId, curOwner.charIdentifier })
     if not wagon or #wagon == 0 then
-        DBG.Error(('Wagon not found or does not belong to current owner: ID %d, CharID %s'):format(wagonId, tostring(curOwner.charIdentifier)))
+        DBG:Error(('Wagon not found or does not belong to current owner: ID %d, CharID %s'):format(wagonId, tostring(curOwner.charIdentifier)))
         return cb(false)
     end
 
@@ -529,7 +529,7 @@ Core.Callback.Register('bcc-wagons:SaveWagonTrade', function(source, cb, serverI
     Core.NotifyRightTip(src, (_U('youGave') or '') .. newOwnerName .. (_U('aWagon') or ''), 4000)
     Core.NotifyRightTip(serverId, curOwnerName .. (_U('gaveWagon') or ''), 4000)
 
-    DBG.Info(('Wagon trade successful: ID %d from %s to %s'):format(wagonId, curOwnerName, newOwnerName))
+    DBG:Info(('Wagon trade successful: ID %d from %s to %s'):format(wagonId, curOwnerName, newOwnerName))
     cb(true)
 end)
 
@@ -539,7 +539,7 @@ RegisterNetEvent('bcc-wagons:RegisterInventory', function(id, wagonModel)
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return
     end
 
@@ -559,7 +559,7 @@ RegisterNetEvent('bcc-wagons:RegisterInventory', function(id, wagonModel)
     end
 
     if not wagonConfig then
-        DBG.Error(('Invalid wagon model for RegisterInventory: %s'):format(tostring(wagonModel)))
+        DBG:Error(('Invalid wagon model for RegisterInventory: %s'):format(tostring(wagonModel)))
         return
     end
 
@@ -580,10 +580,10 @@ RegisterNetEvent('bcc-wagons:RegisterInventory', function(id, wagonModel)
     -- Register or update the inventory
     if isRegistered then
         exports.vorp_inventory:updateCustomInventoryData(idStr, data)
-        DBG.Info(('Updated inventory for wagon: %s'):format(idStr))
+        DBG:Info(('Updated inventory for wagon: %s'):format(idStr))
     else
         exports.vorp_inventory:registerInventory(data)
-        DBG.Info(('Registered inventory for wagon: %s'):format(idStr))
+        DBG:Info(('Registered inventory for wagon: %s'):format(idStr))
     end
 
     -- Set up permissions
@@ -624,13 +624,13 @@ RegisterNetEvent('bcc-wagons:OpenInventory', function(id)
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return
     end
 
     -- Validate the wagon ID
     if not id then
-        DBG.Error(('Invalid wagon ID provided by source: %s'):format(tostring(src)))
+        DBG:Error(('Invalid wagon ID provided by source: %s'):format(tostring(src)))
         return
     end
 
@@ -638,7 +638,7 @@ RegisterNetEvent('bcc-wagons:OpenInventory', function(id)
     local inventoryId = 'wagon_' .. tostring(id)
     exports.vorp_inventory:openInventory(src, inventoryId)
 
-    DBG.Info(('Player %s opened wagon inventory: %s'):format(tostring(src), inventoryId))
+    DBG:Info(('Player %s opened wagon inventory: %s'):format(tostring(src), inventoryId))
 end)
 
 Core.Callback.Register('bcc-wagons:GetRepairLevel', function(source, cb, myWagonId, myWagonModel)
@@ -647,7 +647,7 @@ Core.Callback.Register('bcc-wagons:GetRepairLevel', function(source, cb, myWagon
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -656,7 +656,7 @@ Core.Callback.Register('bcc-wagons:GetRepairLevel', function(source, cb, myWagon
 
     -- Validate inputs
     if not myWagonId or not myWagonModel then
-        DBG.Error(('Invalid wagon ID or model for source: %s'):format(tostring(src)))
+        DBG:Error(('Invalid wagon ID or model for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -667,13 +667,13 @@ Core.Callback.Register('bcc-wagons:GetRepairLevel', function(source, cb, myWagon
     )
 
     if not repairLevel or not repairLevel[1] then
-        DBG.Warning(('Wagon not found or does not belong to player: ID %s, Model %s, CharID %s'):format(
+        DBG:Warning(('Wagon not found or does not belong to player: ID %s, Model %s, CharID %s'):format(
             tostring(myWagonId), tostring(myWagonModel), tostring(charid)
         ))
         return cb(false)
     end
 
-    DBG.Info(('Fetched repair level for wagon: ID %s, Model %s, Condition %d'):format(
+    DBG:Info(('Fetched repair level for wagon: ID %s, Model %s, Condition %d'):format(
         tostring(myWagonId), tostring(myWagonModel), repairLevel[1].condition
     ))
 
@@ -686,7 +686,7 @@ Core.Callback.Register('bcc-wagons:UpdateRepairLevel', function(source, cb, myWa
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -695,7 +695,7 @@ Core.Callback.Register('bcc-wagons:UpdateRepairLevel', function(source, cb, myWa
 
     -- Validate inputs
     if not myWagonId or not myWagonModel then
-        DBG.Error(('Invalid wagon ID or model for source: %s'):format(tostring(src)))
+        DBG:Error(('Invalid wagon ID or model for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -706,7 +706,7 @@ Core.Callback.Register('bcc-wagons:UpdateRepairLevel', function(source, cb, myWa
     )
 
     if not wagonData or not wagonData[1] then
-        DBG.Warning(('Wagon not found or does not belong to player: ID %s, Model %s, CharID %s'):format(
+        DBG:Warning(('Wagon not found or does not belong to player: ID %s, Model %s, CharID %s'):format(
             tostring(myWagonId), tostring(myWagonModel), tostring(charid)
         ))
         return cb(false)
@@ -725,13 +725,13 @@ Core.Callback.Register('bcc-wagons:UpdateRepairLevel', function(source, cb, myWa
     end
 
     if not wagonConfig then
-        DBG.Error(('Wagon config not found for model: %s'):format(tostring(myWagonModel)))
+        DBG:Error(('Wagon config not found for model: %s'):format(tostring(myWagonModel)))
         return cb(false)
     end
 
     -- Validate condition decrease value
     if not wagonConfig.condition or not wagonConfig.condition.decreaseValue then
-        DBG.Error(('Invalid condition decrease value for wagon model: %s'):format(tostring(myWagonModel)))
+        DBG:Error(('Invalid condition decrease value for wagon model: %s'):format(tostring(myWagonModel)))
         return cb(false)
     end
 
@@ -746,7 +746,7 @@ Core.Callback.Register('bcc-wagons:UpdateRepairLevel', function(source, cb, myWa
         { updateLevel, myWagonId, charid }
     )
 
-    DBG.Info(('Updated repair level for wagon: ID %s, Model %s, New Condition %d'):format(
+    DBG:Info(('Updated repair level for wagon: ID %s, Model %s, New Condition %d'):format(
         tostring(myWagonId), tostring(myWagonModel), updateLevel
     ))
 
@@ -759,45 +759,45 @@ Core.Callback.Register('bcc-wagons:GetItemDurability', function(source, cb, item
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
     -- Validate item input
     if not item then
-        DBG.Error(('Invalid item provided by source: %s'):format(tostring(src)))
+        DBG:Error(('Invalid item provided by source: %s'):format(tostring(src)))
         return cb(false)
     end
 
     -- Fetch item from inventory
     local tool = exports.vorp_inventory:getItem(src, item)
     if not tool then
-        DBG.Warning(('Item not found in inventory for source: %s, Item: %s'):format(tostring(src), tostring(item)))
+        DBG:Warning(('Item not found in inventory for source: %s, Item: %s'):format(tostring(src), tostring(item)))
         return cb('0')  -- Return '0' as fallback for missing items
     end
 
     -- Extract durability from metadata
     local toolMeta = tool.metadata
     if not toolMeta or toolMeta.durability == nil then
-        DBG.Warning(('Item metadata or durability missing for source: %s, Item: %s'):format(tostring(src), tostring(item)))
+        DBG:Warning(('Item metadata or durability missing for source: %s, Item: %s'):format(tostring(src), tostring(item)))
         return cb('0')  -- Return '0' as fallback for missing durability
     end
 
-    DBG.Info(('Fetched durability for item: %s, Durability: %s'):format(tostring(item), tostring(toolMeta.durability)))
+    DBG:Info(('Fetched durability for item: %s, Durability: %s'):format(tostring(item), tostring(toolMeta.durability)))
     cb(toolMeta.durability)
 end)
 
 local function UpdateRepairItem(src, item)
     local toolUsage = Config.repair.usage
     if not toolUsage or toolUsage <= 0 then
-        DBG.Error('Invalid repair tool usage value in config')
+        DBG:Error('Invalid repair tool usage value in config')
         return
     end
 
     -- Check if the tool exists in the player's inventory
     local tool = exports.vorp_inventory:getItem(src, item)
     if not tool then
-        DBG.Error(('Tool not found in inventory for source: %s, Item: %s'):format(tostring(src), tostring(item)))
+        DBG:Error(('Tool not found in inventory for source: %s, Item: %s'):format(tostring(src), tostring(item)))
         return
     end
 
@@ -811,7 +811,7 @@ local function UpdateRepairItem(src, item)
             description = _U('durability') .. durabilityValue .. '%',
             durability = durabilityValue
         })
-        DBG.Info(('Initialized durability for tool: %s, Durability: %d'):format(item, durabilityValue))
+        DBG:Info(('Initialized durability for tool: %s, Durability: %d'):format(item, durabilityValue))
     else
         -- Subtract durability
         durabilityValue = toolMeta.durability - toolUsage
@@ -822,12 +822,12 @@ local function UpdateRepairItem(src, item)
                 description = _U('durability') .. durabilityValue .. '%',
                 durability = durabilityValue
             })
-            DBG.Info(('Updated tool durability for source: %s, Tool: %s, Durability: %d'):format(tostring(src), item, durabilityValue))
+            DBG:Info(('Updated tool durability for source: %s, Tool: %s, Durability: %d'):format(tostring(src), item, durabilityValue))
         else
             -- Remove the tool if durability is exhausted
             exports.vorp_inventory:subItemById(src, tool.id, nil, nil, 1)
             Core.NotifyRightTip(src, _U('needNewTool'), 4000)
-            DBG.Info(('Removed broken tool for source: %s, Tool: %s'):format(tostring(src), item))
+            DBG:Info(('Removed broken tool for source: %s, Tool: %s'):format(tostring(src), item))
         end
     end
 end
@@ -838,7 +838,7 @@ Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId,
 
     -- Check if the user exists
     if not user then
-        DBG.Error(('User not found for source: %s'):format(tostring(src)))
+        DBG:Error(('User not found for source: %s'):format(tostring(src)))
         return cb(false)
     end
 
@@ -851,7 +851,7 @@ Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId,
     local hasItem = exports.vorp_inventory:getItem(src, item)
     if not hasItem then
         Core.NotifyRightTip(src, _U('youNeed') .. repairLabel .. _U('toRepair'), 4000)
-        DBG.Warning(('Player %s does not have the repair tool: %s'):format(tostring(src), item))
+        DBG:Warning(('Player %s does not have the repair tool: %s'):format(tostring(src), item))
         return cb(false)
     end
 
@@ -862,7 +862,7 @@ Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId,
     )
 
     if not wagonData or not wagonData[1] then
-        DBG.Error(('Wagon not found or does not belong to player: ID %s, Model %s, CharID %s'):format(
+        DBG:Error(('Wagon not found or does not belong to player: ID %s, Model %s, CharID %s'):format(
             tostring(myWagonId), tostring(myWagonModel), tostring(charid)
         ))
         return cb(false)
@@ -881,13 +881,13 @@ Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId,
     end
 
     if not wagonConfig then
-        DBG.Error(('Wagon config not found for model: %s'):format(tostring(myWagonModel)))
+        DBG:Error(('Wagon config not found for model: %s'):format(tostring(myWagonModel)))
         return cb(false)
     end
 
     -- Check if wagon is already at max condition
     if wagonData[1].condition >= wagonConfig.condition.maxAmount then
-        DBG.Warning(('Wagon is already at max condition: ID %s, Model %s'):format(tostring(myWagonId), tostring(myWagonModel)))
+        DBG:Warning(('Wagon is already at max condition: ID %s, Model %s'):format(tostring(myWagonId), tostring(myWagonModel)))
         return cb(false)
     end
 
@@ -904,7 +904,7 @@ Core.Callback.Register('bcc-wagons:RepairWagon', function(source, cb, myWagonId,
     -- Update repair item durability
     UpdateRepairItem(src, item)
 
-    DBG.Info(('Repaired wagon: ID %s, Model %s, New Condition %d'):format(
+    DBG:Info(('Repaired wagon: ID %s, Model %s, New Condition %d'):format(
         tostring(myWagonId), tostring(myWagonModel), updateLevel
     ))
 
@@ -918,7 +918,7 @@ if Config.outfitsAtWagon then
 
         -- Check if the user exists
         if not user then
-            DBG.Error('User not found for source: ' .. tostring(src))
+            DBG:Error('User not found for source: ' .. tostring(src))
             return
         end
 
@@ -941,7 +941,7 @@ if Config.outfitsAtWagon then
 
         -- Check if the user exists
         if not user then
-            DBG.Error('User not found for source: ' .. tostring(src))
+            DBG:Error('User not found for source: ' .. tostring(src))
             return
         end
 
