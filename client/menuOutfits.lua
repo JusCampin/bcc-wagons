@@ -1,7 +1,5 @@
 local Core = exports.vorp_core:GetCore()
 local FeatherMenu = exports['feather-menu'].initiate()
----@type BCCWagonsDebugLib
-local DBG = BCCWagonsDebug
 
 local originalOutfit = {}
 local CharacterOutfits = {}
