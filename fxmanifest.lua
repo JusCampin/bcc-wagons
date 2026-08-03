@@ -4,36 +4,53 @@ rdr3_warning 'I acknowledge that this is a prerelease build of RedM, and I am aw
 game 'rdr3'
 lua54 'yes'
 author 'BCC Team'
+version '1.4.0'
 
 shared_scripts {
-    'shared/configs/*.lua',
-    'shared/debug_init.lua',
-    'shared/locale.lua',
-    'shared/languages/*.lua'
+    'configs/settings.lua',
+    'configs/inventory.lua',
+    'configs/map.lua',
+    'configs/wagon_catalog.lua',
+    'configs/shop_locations.lua',
+    'locales/init.lua',
+    'locales/en.lua',
+    'locales/fr.lua',
+    'locales/de.lua',
+    'locales/nl.lua',
+    'locales/ro.lua'
 }
 
 client_scripts {
-    'client/client.lua',
-    'client/menu.lua',
+    'client/core/init.lua',
+    'client/core/helpers.lua',
+    'client/core/preview_instance.lua',
+    'client/ui/menu.lua',
+    'client/ui/pages/*.lua',
+    'client/wagon/inventory.lua',
+    'client/wagon/spawn.lua',
+    'client/wagon/return.lua',
+    'client/wagon/interactions.lua',
+    'client/wagon/trade.lua',
+    'client/wagon/prompts.lua',
+    'client/core/main.lua',
+    'client/core/commands.lua',
     '@vorp_character/client/creator_functions.lua',
     'client/menuOutfits.lua'
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
-    'server/server.lua'
+    'server/core/init.lua',
+    'server/core/helpers.lua',
+    'server/core/preview_instance.lua',
+    'server/wagon/delivery.lua',
+    'server/core/cooldown.lua',
+    'server/wagon/inventory.lua',
+    'server/wagon/interactions.lua',
+    'server/wagon/purchase.lua',
+    'server/wagon/sale.lua',
+    'server/wagon/trade.lua',
+    'server/core/main.lua',
 }
 
-ui_page {
-	'ui/index.html'
-}
-
-files {
-    "ui/index.html",
-    "ui/js/*.*",
-    "ui/css/*.*",
-    "ui/fonts/*.*",
-    "ui/img/*.*"
-}
-
-version '1.4.0'
+dependency 'feather-menu'
