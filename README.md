@@ -32,6 +32,7 @@ Whether you're a hardworking farmer tending to your crops, a family embarking on
 
 - [vorp_core](https://github.com/VORPCORE/vorp-core-lua)
 - [vorp_inventory](https://github.com/VORPCORE/vorp_inventory-lua)
+- [feather-menu](https://github.com/FeatherFramework/feather-menu)
 - [bcc-utils](https://github.com/BryceCanyonCounty/bcc-utils)
 
 ## Installation
@@ -45,8 +46,6 @@ Whether you're a hardworking farmer tending to your crops, a family embarking on
 ## Credits
 
 - **lrp_stable**
-- **[ByteSizd](https://github.com/AndrewR3K)**: Vue Boilerplate for RedM
-- **[SavSin](https://github.com/DavFount)**: UI conversion to VueJS
 
 ## GitHub
 
