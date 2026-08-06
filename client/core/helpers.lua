@@ -26,10 +26,10 @@ end
 ---@return boolean
 local function hasWainwrightJobRequirements()
     local job, grade = getCharacterJob()
-    return job ~= nil and hasRequiredGrade(Config.training.trainerJobs, job, grade)
+    return job ~= nil and hasRequiredGrade(Config.wainwright.wainwrightJobs, job, grade)
 end
 
----Checks if a player is blocked from accessing the current stable node
+---Checks if a player is blocked from accessing the current wagon shop.
 ---@return boolean -- True if the player is BLOCKED, False if they are allowed in
 function IsPlayerBlockedFromCurrentWainwrightShop()
     local currentShopNode = Sites[Site]
@@ -41,7 +41,7 @@ function IsPlayerBlockedFromCurrentWainwrightShop()
     return not hasWainwrightJobRequirements()
 end
 
--- Job check for general stable access and available wagons
+-- Job check for general shop access and available wagons
 function CheckPlayerJob(siteId)
     JobMatchedWagons = {}
 
@@ -59,7 +59,7 @@ function CheckPlayerJob(siteId)
     end
 
     if shop and shop.jobsEnabled and not isAuthorized then
-        Core.NotifyRightTip(_U('needJob') or 'You do not have the required job to access this shop!', 4000)
+        Core.NotifyRightTip(_U('needJob'), 4000)
         return false
     end
 
@@ -111,7 +111,7 @@ RegisterNetEvent('bcc-wagons:UpdateMyWagonEntity', function(targetNetId)
             end
 
             if not isEntityFound and not pendingWagonEntityNetId then
-                DBG:Warning('Instance Sync Timeout: The mount asset entity failed to stream back into local client RAM.')
+                DBG:Warning('Instance sync timeout: the wagon entity failed to stream back to the client.')
             end
         end
 
@@ -178,10 +178,10 @@ function CleanWagonAppearance(wagon)
         return false
     end
 
-    -- TODO: Consider adding a native to clear wagon dirt and decals without affecting wetness.
-    -- Citizen.InvokeNative(0x6585D955A68452A5, wagon) -- ClearPedEnvDirt
-    -- Citizen.InvokeNative(0x523C79AEEFCC4A2A, wagon, 10, 'ALL') -- ClearPedDamageDecalByZone
-    -- Citizen.InvokeNative(0x8FE22675A5A45817, wagon) -- ClearPedBloodDamage
+    Citizen.InvokeNative(0x758C3460EE915D0A, wagon, 0) -- SetVehicleDirtLevel
+    Citizen.InvokeNative(0xBAE0EEDF93F05EAA, wagon, 0) -- SetVehicleDirtLevel2
+    Citizen.InvokeNative(0x4D15E49764CB328A, wagon, 0) -- SetVehicleMudLevel
+    Citizen.InvokeNative(0x6F73EFAB11651D7F, wagon, 0) -- SetVehicleSnowLevel
     return true
 end
 
