@@ -1,5 +1,5 @@
 Config.inventory = {
-    shared = false,           -- Allows other players to loot wagon inventories when true.
+    shared = false, -- Allows other players to loot wagon inventories when true.
 
     weapons = {
         enabled = true,       -- Allow weapons to be stored in wagons.
