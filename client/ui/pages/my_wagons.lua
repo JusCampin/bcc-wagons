@@ -3,11 +3,8 @@ local BUSY_SPINNER_OFF <const> = 0x58F441B90EA84D06
 
 local function configurePreviewWagon(entity, wagon, preview, onReady)
     ShopUI.PlacePreviewWagon(entity, preview or ShopUI.GetPreviewWagonConfig())
-    Citizen.InvokeNative(0x7263332501E07F52, entity, true) -- SetVehicleOnGroundProperly
     Citizen.InvokeNative(0x7D9EFB7AD6B19754, entity, true) -- FreezeEntityPosition
 
-    WagonAppearance.resetTracking(entity)
-    --WagonAppearance.applyLoadout(entity, wagon.tackLoadout or {})
     ShopUI.CleanPreviewWagon(entity, onReady)
 end
 
@@ -35,7 +32,7 @@ local function previewWagon(wagon)
         local model = modelName and joaat(modelName)
         if not model then return end
 
-        Citizen.InvokeNative(BUSY_SPINNER_TEXT, CreateVarString(10, 'LITERAL_STRING', 'Loading wagon...'))
+        Citizen.InvokeNative(BUSY_SPINNER_TEXT, CreateVarString(10, 'LITERAL_STRING', _U('loadingWagon')))
         if not LoadModel(model, modelName) or not ShopUI.IsPreviewRequestCurrent(requestId) then
             Citizen.InvokeNative(BUSY_SPINNER_OFF)
             return
@@ -50,7 +47,7 @@ local function previewWagon(wagon)
 
         local coords = spawn.coords
         local spawnZ = coords.z - 1.0
-        local entity = CreateVehicle(model, coords.x, coords.y, spawnZ, spawn.heading, false, false, false, false)
+        local entity = CreateDraftVehicle(model, coords.x, coords.y, spawnZ, spawn.heading, false, false, true, 0 , false)
         SetModelAsNoLongerNeeded(model)
 
         if not CheckEntityExists(entity) or not ShopUI.IsPreviewRequestCurrent(requestId) then
@@ -64,12 +61,12 @@ local function previewWagon(wagon)
         ShopUI.HidePreviewWagon(entity)
         configurePreviewWagon(entity, wagon, spawn, function(ready)
             if not ShopUI.IsPreviewRequestCurrent(requestId) then
-                if not DoesEntityExist(MyEntity) and not DoesEntityExist(ShopEntity) then
+                if not ShopUI.EntityExists(MyEntity) and not ShopUI.EntityExists(ShopEntity) then
                     Citizen.InvokeNative(BUSY_SPINNER_OFF)
                 end
                 return
             end
-            if ready then ShopUI.RevealPreviewHorse(entity) end
+            if ready then ShopUI.RevealPreviewWagon(entity) end
             Citizen.InvokeNative(BUSY_SPINNER_OFF)
         end)
         ShopUI.FramePreviewCamera(entity)
@@ -100,71 +97,63 @@ end
 
 ---Rebuilds the roster around one wagon so the active marker, expanded actions,
 ---and physical preview always describe the same entry.
----@param horseId number|string
+---@param wagonId number|string
 ---@param persist boolean|nil
 ---@return boolean
-function ShowSelectedHorseRoster(horseId, persist)
-    local horse = findRosterHorse(horseId)
-    if not horse then
-        ExpandedHorseId = nil
-        BuildMyHorsesPage()
-        ShopUI.OpenPage('my_horses')
+function ShowSelectedWagonRoster(wagonId, persist)
+    local wagon = findRosterWagon(wagonId)
+    if not wagon then
+        ExpandedWagonId = nil
+        BuildMyWagonsPage()
+        ShopUI.OpenPage('my_wagons')
         return false
     end
 
-    SetSelectedHorseLocally(horse.id, persist)
-    ExpandedHorseId = horse.id
-    InvalidateHorseCache()
-    BuildMyHorsesPage()
-    ShopUI.OpenPage('my_horses')
-    previewHorse(horse)
+    SetSelectedWagonLocally(wagon.id, persist)
+    ExpandedWagonId = wagon.id
+    InvalidateWagonCache()
+    BuildMyWagonsPage()
+    ShopUI.OpenPage('my_wagons')
+    previewWagon(wagon)
     return true
 end
 
-local function addHorseActions(page, horse)
-    local horseIsOut = MyHorse and MyHorse ~= 0 and DoesEntityExist(MyHorse)
-    local selectedHorseIsOut = horseIsOut and tonumber(MyHorseId) == tonumber(horse.id)
-    local stableActionLabel = selectedHorseIsOut and (_U('returnPrompt') or 'Return Horse')
-        or (horseIsOut and (_U('switchHorse') or 'Switch to This Horse')
-            or (_U('takeOutHorse') or 'Take Out Horse'))
+local function addWagonActions(page, wagon)
+    local wagonIsOut = MyWagon and MyWagon ~= 0 and DoesEntityExist(MyWagon)
+    local selectedWagonIsOut = wagonIsOut and tonumber(MyWagonId) == tonumber(wagon.id)
+    local shopActionLabel = selectedWagonIsOut and _U('returnPrompt')
+        or (wagonIsOut and _U('switchWagon') or _U('takeOutWagon'))
     local actions = {
         {
-            id = 'stable_action', label = stableActionLabel,
-            style = selectedHorseIsOut and ShopUI.Styles.danger or ShopUI.Styles.success,
+            id = 'shop_action', label = shopActionLabel,
+            style = selectedWagonIsOut and ShopUI.Styles.danger or ShopUI.Styles.success,
             run = function()
                 StopRotation()
-                ManageHorseAtStable(horse.id, Site)
+                ManageWagonAtShop(wagon.id, Site)
             end,
         },
         {
-            id = 'details', label = 'View Stats & Details',
+            id = 'details', label = _U('viewDetails'),
             run = function()
                 StopRotation()
-                BuildHorseDetailPage(horse, 'my_horses')
-                ShopUI.OpenPage('horse_detail')
+                BuildWagonDetailPage(wagon, 'my_wagons')
+                ShopUI.OpenPage('wagon_detail')
             end,
         },
         {
-            id = 'tack', label = 'Open Tack Shop',
-            run = function()
-                StopRotation()
-                BuildTackShopPage()
-            end,
-        },
-        {
-            id = 'rename', label = 'Rename Horse',
+            id = 'rename', label = _U('renameWagon'),
             run = function()
                 OpenNamingPage({
-                    origin = 'updateHorse',
-                    horseId = tonumber(horse.id),
-                    name = horse.name or '',
+                    origin = 'updateWagon',
+                    wagonId = tonumber(wagon.id),
+                    name = wagon.name or '',
                 })
             end,
         },
         {
-            id = 'sell', label = 'Sell Horse',
+            id = 'sell', label = _U('sellWagon'),
             run = function()
-                if BuildHorseSellPage(horse) then ShopUI.OpenPage('horse_sell') end
+                if BuildWagonSellPage(wagon) then ShopUI.OpenPage('wagon_sell') end
             end,
         },
     }
@@ -172,7 +161,7 @@ local function addHorseActions(page, horse)
     for _, action in ipairs(actions) do
         ShopUI.AddButton(
             page,
-            ('horse_%s_%s'):format(horse.id, action.id),
+            ('wagon_%s_%s'):format(wagon.id, action.id),
             '    ' .. action.label,
             'content',
             action.run,
@@ -181,54 +170,54 @@ local function addHorseActions(page, horse)
     end
 end
 
-function BuildMyHorsesPage()
-    local page = ShopUI.RegisterPage('my_horses')
-    ShopUI.AddHeader(page, _U('myHorses') or 'My Horses')
+function BuildMyWagonsPage()
+    local page = ShopUI.RegisterPage('my_wagons')
+    ShopUI.AddHeader(page, _U('myWagons'))
 
-    if type(MyHorsesData) ~= 'table' or #MyHorsesData == 0 then
-        ShopUI.AddText(page, 'horse_roster_empty', _U('noPersonalHorse') or 'No horses. Visit the trader to purchase one.')
+    if type(MyWagonsData) ~= 'table' or #MyWagonsData == 0 then
+        ShopUI.AddText(page, 'wagon_roster_empty', _U('noPersonalWagon'))
     else
-        for _, horse in ipairs(MyHorsesData) do
-            local expanded = tonumber(ExpandedHorseId) == tonumber(horse.id)
-            local name = horse.name or ('Horse #' .. tostring(horse.id))
-            if horse.is_selected == true then name = name .. ' (Active)' end
+        for _, wagon in ipairs(MyWagonsData) do
+            local expanded = tonumber(ExpandedWagonId) == tonumber(wagon.id)
+            local name = wagon.name or _U('wagonNumber', wagon.id)
+            if wagon.is_selected == true then name = _U('activeWagonLabel', name) end
 
             ShopUI.AddButton(
                 page,
-                'horse_select_' .. horse.id,
+                'wagon_select_' .. wagon.id,
                 expanded and (name .. ' ▼') or name,
                 'content',
                 function()
                     StopRotation()
-                    local isCurrentlyExpanded = tonumber(ExpandedHorseId) == tonumber(horse.id)
+                    local isCurrentlyExpanded = tonumber(ExpandedWagonId) == tonumber(wagon.id)
 
                     if isCurrentlyExpanded then
-                        ExpandedHorseId = nil
-                        BuildMyHorsesPage()
-                        ShopUI.OpenPage('my_horses')
+                        ExpandedWagonId = nil
+                        BuildMyWagonsPage()
+                        ShopUI.OpenPage('my_wagons')
                         return
                     end
 
-                    ExpandedHorseId = horse.id
-                    SetSelectedHorseLocally(horse.id, true)
-                    BuildMyHorsesPage()
-                    ShopUI.OpenPage('my_horses')
-                    previewHorse(horse)
+                    ExpandedWagonId = wagon.id
+                    SetSelectedWagonLocally(wagon.id, true)
+                    BuildMyWagonsPage()
+                    ShopUI.OpenPage('my_wagons')
+                    previewWagon(wagon)
                 end,
                 expanded and ShopUI.Styles.subheader or ShopUI.Styles.button
             )
 
-            if expanded then addHorseActions(page, horse) end
+            if expanded then addWagonActions(page, wagon) end
         end
     end
 
     ShopUI.AddFooter(page)
-    ShopUI.AddButton(page, 'horse_roster_rotate', '↻ ' .. (_U('rotateButton') or 'Rotate'), 'footer', function()
+    ShopUI.AddButton(page, 'wagon_roster_rotate', '↻ ' .. _U('rotateButton'), 'footer', function()
         ShopUI.ToggleRotation(-1)
     end)
-    ShopUI.AddButton(page, 'horse_roster_trader', _U('traderButton') or 'Trader', 'footer', function()
+    ShopUI.AddButton(page, 'wagon_roster_shop', _U('shopButton'), 'footer', function()
         StopRotation()
-        BuildTraderPage()
-        ShopUI.OpenPage('trader')
+        BuildShopPage()
+        ShopUI.OpenPage('shop')
     end)
 end
