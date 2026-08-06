@@ -21,7 +21,7 @@ ShopUI.Styles = {
 
 function ShopUI.AddHeader(page, subtitle, title)
     page:RegisterElement('header', {
-        value = title or ShopName or 'Wagon Shop',
+        value = title or ShopName or _U('wagonShop'),
         slot = 'header',
         style = ShopUI.Styles.header,
     })
@@ -80,6 +80,12 @@ function ShopUI.AsTable(value)
     if type(value) ~= 'string' or value == '' then return {} end
     local ok, decoded = pcall(json.decode, value)
     return ok and type(decoded) == 'table' and decoded or {}
+end
+
+---@param entity integer|nil
+---@return boolean
+function ShopUI.EntityExists(entity)
+    return type(entity) == 'number' and entity ~= 0 and DoesEntityExist(entity)
 end
 
 function ShopUI.GetModel(model)
@@ -364,15 +370,19 @@ ShopMenu = FeatherMenu:RegisterMenu('bcc-wagons:ShopMenu', {
 
 function ClearShopWagon()
     ShopUI.BeginPreviewRequest()
-    if ShopEntity ~= 0 and DoesEntityExist(ShopEntity) then
-        SetEntityAsMissionEntity(ShopEntity, true, true)
-        DeleteEntity(ShopEntity)
+    local shopEntity = ShopEntity
+    if ShopUI.EntityExists(shopEntity) then
+        ---@cast shopEntity integer
+        SetEntityAsMissionEntity(shopEntity, true, true)
+        DeleteEntity(shopEntity)
     end
     ShopEntity = 0
 
-    if MyEntity ~= 0 and DoesEntityExist(MyEntity) then
-        SetEntityAsMissionEntity(MyEntity, true, true)
-        DeleteEntity(MyEntity)
+    local ownedEntity = MyEntity
+    if ShopUI.EntityExists(ownedEntity) then
+        ---@cast ownedEntity integer
+        SetEntityAsMissionEntity(ownedEntity, true, true)
+        DeleteEntity(ownedEntity)
     end
     MyEntity = 0
 end
@@ -400,7 +410,7 @@ function CloseShop()
 end
 
 
-local function OpenStableMenu()
+local function OpenShopMenu()
     ClearShopWagon()
 
     ExpandedWagonId = nil
@@ -432,7 +442,7 @@ function ShopUI.EnterPreview(callback)
 
     EnterPreviewInstance(function(success)
         if not success then
-            Core.NotifyRightTip('The private shop preview is temporarily unavailable.', 5000)
+            Core.NotifyRightTip(_U('privatePreviewUnavailable'), 5000)
             finish(false)
             return
         end
@@ -441,13 +451,13 @@ function ShopUI.EnterPreview(callback)
     end)
 end
 
-function RefreshStableMenu()
+function RefreshShopMenu()
     local site = Site
     if ShopMenu then ShopMenu:Close() end
-    if site then OpenShop(site) end
+    if site then OpenWagonShop(site) end
 end
 
-function OpenShop(site)
+function OpenWagonShop(site)
     Site = site
     ShopName = Sites[Site].shop.name
     MyWagonsData = nil
@@ -465,7 +475,7 @@ function OpenShop(site)
         end
         Cam = false
 
-        Core.NotifyRightTip("Failed to retrieve shop records from the cloud. Please retry.", 5000)
+        Core.NotifyRightTip(_U('rosterLoadFailed'), 5000)
     end)
 end
 
