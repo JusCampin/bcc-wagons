@@ -8,6 +8,7 @@ version '1.4.0'
 
 shared_scripts {
     'configs/settings.lua',
+    'configs/wainwright.lua',
     'configs/inventory.lua',
     'configs/map.lua',
     'configs/wagon_catalog.lua',
@@ -24,18 +25,20 @@ client_scripts {
     'client/core/init.lua',
     'client/core/helpers.lua',
     'client/core/preview_instance.lua',
+    'client/core/dataview.lua',
     'client/ui/menu.lua',
     'client/ui/pages/*.lua',
     'client/wagon/inventory.lua',
+    'client/wagon/features.lua',
     'client/wagon/spawn.lua',
     'client/wagon/return.lua',
     'client/wagon/interactions.lua',
-    'client/wagon/trade.lua',
+    --'client/wagon/trade.lua',
     'client/wagon/prompts.lua',
     'client/core/main.lua',
     'client/core/commands.lua',
-    '@vorp_character/client/creator_functions.lua',
-    'client/menuOutfits.lua'
+    --'@vorp_character/client/creator_functions.lua',
+    --'client/menuOutfits.lua'
 }
 
 server_scripts {
