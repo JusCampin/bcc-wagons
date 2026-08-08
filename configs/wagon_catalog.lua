@@ -431,6 +431,7 @@ Wagons.ModelToTypeMap = {
     ['cart06']            = { wagonType = 'Carts' },
     ['cart07']            = { wagonType = 'Carts' },
     ['cart08']            = { wagonType = 'Carts' },
+    ['huntercart01']      = { wagonType = 'Carts' },
     ['supplywagon']       = { wagonType = 'Wagons' },
     ['wagontraveller01x'] = { wagonType = 'Wagons' },
     ['wagon02x']          = { wagonType = 'Wagons' },
