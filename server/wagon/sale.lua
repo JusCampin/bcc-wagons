@@ -57,6 +57,10 @@ Core.Callback.Register('bcc-wagons:SellMyWagon', function(source, cb, data)
                     ActiveSales[lockKey] = nil
                     if not rowsAffected or rowsAffected <= 0 then return cb(false) end
 
+                    MySQL.update(
+                        'DELETE FROM `bcc_wagon_hunting_cargo` WHERE `wagon_id` = ?',
+                        { wagonId }
+                    )
                     payoutCharacter(character, currencyType, payout)
 
                     local message = payout > 0
