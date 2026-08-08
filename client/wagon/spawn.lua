@@ -2,6 +2,20 @@ local SendingWagon = nil
 local IsSelectedWagonRequestActive = false
 local ARRIVAL_DISTANCE = 10.0
 
+local DraftAnimalGroups = {
+    -- Regional Draft Horse Groups
+    DRAFT_HORSES_SOUTHERN   = 3190104953,
+    DRAFT_HORSES_NORTHERN   = 3016566292,
+    DRAFT_HORSES_WESTERN    = 4244744145,
+    -- Socioeconomic & Industrial Groups
+    DRAFT_HORSES_POOR       = 3204433874,
+    DRAFT_HORSES_MID        = 2961454031,
+    DRAFT_HORSES_RICH       = 408782868,
+    -- Specialized Functional Groups
+    DRAFT_HORSES_FARM       = 1994583957,
+    DRAFT_HORSES_STAGECOACH = 532181714
+}
+
 local function wagonExists(wagon)
     return wagon and wagon ~= 0 and DoesEntityExist(wagon)
 end
@@ -337,7 +351,7 @@ function SpawnWagon(data, spawnOptions)
         true,
         false,
         false,
-        joaat(''),
+        DraftAnimalGroups.DRAFT_HORSES_RICH,
         false
     )
 
@@ -382,6 +396,14 @@ function SpawnWagon(data, spawnOptions)
 
     TriggerServerEvent('bcc-wagons:RegisterInventory', MyWagonId)
     Entity(wagon).state:set('myWagonId', MyWagonId, true)
+
+    InitializeHuntingWagon(wagon)
+    CreateThread(function()
+        local huntingSettings = Config.huntingWagon or {}
+        local tarpDelay = math.max(0, tonumber(huntingSettings.tarpInitializationDelayMs) or 500)
+        Wait(tarpDelay * 2 + 100)
+        if MyWagon == wagon and wagonExists(wagon) then RefreshHuntingCargo() end
+    end)
 
     --TriggerEvent('bcc-wagons:TradeWagon')
     TriggerEvent('bcc-wagons:WagonPrompts')
