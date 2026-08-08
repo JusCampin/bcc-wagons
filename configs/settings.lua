@@ -121,6 +121,24 @@ Config = {
     },
     -----------------------------------------------------
 
+    -- Native hunting cargo behavior for the Hunter Cart.
+    huntingWagon = {
+        enabled = true,
+        model = 'huntercart01',
+        nativeInteractionEnabled = false, -- Experimental: currently crashes when a carcass is picked up.
+        tarpPropSet = 'pg_mp005_huntingWagonTarp01',
+        initialTarpHeight = 0.0,
+        tarpInitializationDelayMs = 500, -- Allow the added prop set to finish loading before setting its height.
+        capacity = 6,
+        defaultAnimalSize = 1,
+        interactionDistance = 2.0,
+        rearOffset = { x = 0.0, y = -2.25, z = 0.0 },
+        loadPromptControl = 0x760A9C6F, -- G
+        loadPromptHoldMs = 1000,
+        loadAnimationMs = 1600,
+    },
+    -----------------------------------------------------
+
     --setBrake = true, -- Default: true / Set to false to Spawn Wagon with Brake Released
     -----------------------------------------------------
 
