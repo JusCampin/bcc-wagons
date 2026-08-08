@@ -30,6 +30,7 @@ client_scripts {
     'client/ui/pages/*.lua',
     'client/wagon/inventory.lua',
     'client/wagon/features.lua',
+    'client/wagon/hunting.lua',
     'client/wagon/spawn.lua',
     'client/wagon/return.lua',
     'client/wagon/interactions.lua',
@@ -49,6 +50,7 @@ server_scripts {
     'server/wagon/delivery.lua',
     'server/core/cooldown.lua',
     'server/wagon/inventory.lua',
+    'server/wagon/hunting.lua',
     'server/wagon/interactions.lua',
     'server/wagon/purchase.lua',
     'server/wagon/sale.lua',
@@ -57,3 +59,4 @@ server_scripts {
 }
 
 dependency 'feather-menu'
+dependency 'bcc-animal-data'
