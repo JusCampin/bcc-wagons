@@ -1,6 +1,8 @@
 local SendingWagon = nil
 local IsSelectedWagonRequestActive = false
 local ARRIVAL_DISTANCE = 10.0
+local GET_PED_IN_DRAFT_HARNESS <const> = 0xA8BA0BAE0173457B
+local MAX_DRAFT_ANIMALS <const> = 4
 
 local DraftAnimalGroups = {
     -- Regional Draft Horse Groups
@@ -179,6 +181,17 @@ function GetSelectedWagon(wagonId, spawnOptions)
     end, wagonId and { wagonId = tonumber(wagonId) } or nil)
 end
 
+local function getDraftAnimals(wagon)
+    local animals = {}
+    for index = 0, MAX_DRAFT_ANIMALS - 1 do
+        local animal = Citizen.InvokeNative(GET_PED_IN_DRAFT_HARNESS, wagon, index)
+        if animal and animal ~= 0 and DoesEntityExist(animal) then
+            animals[#animals + 1] = animal
+        end
+    end
+    return animals
+end
+
 ---@param siteId string
 function CallActiveWagonAtShop(siteId)
     if not Sites[siteId] then return false end
@@ -217,13 +230,26 @@ local function sendWagon()
         return
     end
 
-    TaskGoToEntity(wagon, playerPed, -1, 10.2, 2.0, 0.0, 0)
+    -- A wagon is a vehicle and cannot execute a ped movement task. Assign the
+    -- call task to its harnessed draft animals, which pull the wagon normally.
+    local draftAnimals = getDraftAnimals(wagon)
+    if #draftAnimals == 0 then
+        DBG:Warning('Unable to call wagon: no draft animals were found in its harness.')
+        SendingWagon = nil
+        return
+    end
+
+    for _, animal in ipairs(draftAnimals) do
+        TaskGoToEntity(animal, playerPed, -1, 10.2, 2.0, 0.0, 0)
+    end
 
     while SendingWagon == wagon and MyWagon == wagon and wagonExists(wagon) do
         Wait(0)
         local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(wagon))
         if distance <= ARRIVAL_DISTANCE then
-            ClearPedTasks(wagon)
+            for _, animal in ipairs(draftAnimals) do
+                if DoesEntityExist(animal) then ClearPedTasks(animal) end
+            end
             break
         end
     end
@@ -249,16 +275,46 @@ function CallActiveWagon()
     return true
 end
 
-local function calculateSpawnPosition(playerPed)
-    local x, y, z = table.unpack(GetOffsetFromEntityInWorldCoords(playerPed, 0.0, -10.0, 0.0))
-
-    -- Search for an established trail or road node first
-    for i = 0, 24, 3 do
-        local nodeCheck, node = GetNthClosestVehicleNode(x, y, z, i, 1, 1077936128, 0)
-        if nodeCheck and node ~= vector3(0, 0, 0) then
-            return node
+local function isCallSpawnClear(coords, radius, playerPed)
+    local pools = { 'CVehicle', 'CObject', 'CPed' }
+    for _, poolName in ipairs(pools) do
+        for _, entity in ipairs(GetGamePool(poolName)) do
+            if entity ~= playerPed
+                and DoesEntityExist(entity)
+                and #(GetEntityCoords(entity) - coords) < radius then
+                return false
+            end
         end
     end
+    return true
+end
+
+local function calculateSpawnPosition(playerPed)
+    local x, y, z = table.unpack(GetOffsetFromEntityInWorldCoords(playerPed, 0.0, -10.0, 0.0))
+    local callSettings = Config.shop.callActiveWagon or {}
+    local clearance = math.max(2.0, tonumber(callSettings.spawnClearance) or 5.0)
+    local searchNodes = math.max(1, math.floor(tonumber(callSettings.roadSearchNodes) or 30))
+
+    -- Search actual vehicle-path nodes and retain their road heading. Checking
+    -- clearance rejects service nodes inside yards, sheds, fences, or traffic.
+    for index = 0, searchNodes - 1 do
+        local found, node, heading = GetNthClosestVehicleNodeWithHeading(
+            x,
+            y,
+            z,
+            index,
+            9,
+            3.0,
+            2.5
+        )
+        if found
+            and node ~= vector3(0, 0, 0)
+            and isCallSpawnClear(node, clearance, playerPed) then
+            return node, heading
+        end
+    end
+
+    if callSettings.spawnOnRoadOnly == true then return nil end
 
     -- Fallback to scanning the open ground if no road node is nearby
     local maxScan = 1000
@@ -266,7 +322,7 @@ local function calculateSpawnPosition(playerPed)
     for offset = maxScan, -maxScanDown, -1 do
         local groundCheck, groundZ = GetGroundZAndNormalFor_3dCoord(x, y, z + offset)
         if groundCheck then
-            return vector3(x, y, groundZ)
+            return vector3(x, y, groundZ), GetEntityHeading(playerPed)
         end
     end
 
@@ -326,9 +382,15 @@ function SpawnWagon(data, spawnOptions)
 
     local shopSite = type(spawnOptions) == 'table' and Sites[spawnOptions.shopSite]
     local shopSpawn = shopSite and shopSite.wagon
-    local spawnPosition = shopSpawn and shopSpawn.coords or calculateSpawnPosition(playerPed)
+    local calculatedHeading
+    local spawnPosition
+    if shopSpawn then
+        spawnPosition = shopSpawn.coords
+    else
+        spawnPosition, calculatedHeading = calculateSpawnPosition(playerPed)
+    end
     if not spawnPosition then
-        DBG:Error('Failed to find a valid ground or node position for wagon spawn.')
+        DBG:Error('Failed to find a clear road node for wagon spawn.')
         releaseShopDelivery(spawnOptions)
         finishSpawning(modelHash)
         return
@@ -351,6 +413,7 @@ function SpawnWagon(data, spawnOptions)
 
     local spawnHeading = shopSpawn
         and getHeadingToward(shopSpawn.coords, spawnOptions.deliveryDestination, shopSpawn.heading)
+        or calculatedHeading
         or GetEntityHeading(playerPed)
 
     local wagon = CreateDraftVehicle(
