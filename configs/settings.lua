@@ -12,7 +12,7 @@ Config = {
 
     integrations = {
         discord = {
-            enabled = false,      -- Send configured stable events to Discord.
+            enabled = false,      -- Send configured shop events to Discord.
             webhookUrl = '',      -- Discord webhook URL. Keep blank when disabled.
             title = 'BCC-Wagons', -- Name shown above Discord log messages.
             avatarUrl = '',       -- Optional image URL used as the webhook avatar.
@@ -34,10 +34,10 @@ Config = {
     -----------------------------------------------------
 
     preview = {
-        -- Each player receives a private routing bucket while viewing stable wagons.
+        -- Each player receives a private routing bucket while viewing shop wagons.
         bucketBase = 7000,
 
-        -- Default preview framing. Individual stables may override these values.
+        -- Default preview framing. Individual shops may override these values.
         camera = {
             referenceFov = 42.0,       -- Baseline field of view used for automatic scaling.
             referenceDistance = 4.75,  -- Distance paired with the baseline field of view.
@@ -45,7 +45,7 @@ Config = {
             minimumFov = 30.0,         -- Narrowest field of view automatic scaling may use.
             maximumFov = 65.0,         -- Widest field of view automatic scaling may use.
             horizontalOffset = 0.85,   -- Positive values move the wagon right on screen.
-            cameraHeightOffset = 0.20, -- Raises or lowers the camera from the stable camera point.
+            cameraHeightOffset = 0.20, -- Raises or lowers the camera from the shop camera point.
             targetHeightOffset = 0.05, -- Raises or lowers where the camera aims on the wagon.
         },
     },
@@ -66,25 +66,34 @@ Config = {
     -----------------------------------------------------
 
     shop = {
-        -- Allow the normal whistle to spawn a selected wagon away from a stable.
-        whistleAnywhere = true,
+        -- Press the configured callWagon control (J by default) to call the
+        -- active wagon. If it is not spawned, the selected owned wagon spawns.
+        callActiveWagon = {
+            enabled = true,
+        },
 
         -- Allow players to dismiss their wagon through the Flee prompt.
         fleeEnabled = true,
 
-        -- Actions that remain available while a stable is closed.
+        -- Actions that remain available while a shop is closed.
         whileClosed = {
-            callWagon = true,   -- Allow calling a wagon while the stable is closed.
-            returnWagon = true, -- Allow returning a wagon while the stable is closed.
+            callWagon = true,   -- Allow calling a wagon while the shop is closed.
+            returnWagon = true, -- Allow returning a wagon while the shop is closed.
         },
 
-        -- Return a wagon to the stable when it becomes too far from its owner.
+        -- Return a wagon to the shop when it becomes too far from its owner.
         autoReturn = {
             enabled = true,          -- Despawn wagons left too far from their owner.
             maximumDistance = 100.0, -- Maximum owner distance before auto-return.
+            excludedModels = {
+                -- Hunting carts remain where they are left while the owner
+                -- travels away to hunt. Network control may migrate without
+                -- changing gameplay ownership.
+                ['huntercart01'] = true,
+            },
         },
 
-        -- Controls queued delivery from a stable spawn point to its delivery point.
+        -- Controls queued delivery from a shop spawn point to its delivery point.
         delivery = {
             reservationTimeoutMs = 15000, -- Maximum time one delivery reserves a spawn point.
             spawnClearance = 4.0,         -- Distance required before the next wagon may spawn.
