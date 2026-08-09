@@ -26,6 +26,21 @@ local function deleteEntity(entity)
     DeleteEntity(entity)
 end
 
+local function isAutoReturnExcluded(modelName, distanceCfg)
+    if type(modelName) ~= 'string' or type(distanceCfg) ~= 'table' then return false end
+    local excludedModels = distanceCfg.excludedModels
+    return type(excludedModels) == 'table' and excludedModels[modelName:lower()] == true
+end
+
+local function resolveTrackedWagonEntity()
+    local wagonData = LocalPlayer.state.WagonData
+    local netId = wagonData and tonumber(wagonData.MyWagon)
+    if not netId or netId == 0 or not NetworkDoesNetworkIdExist(netId) then return 0 end
+
+    local entity = NetworkGetEntityFromNetworkId(netId)
+    return entityExists(entity) and entity or 0
+end
+
 CreateThread(function()
     local distanceCfg <const> = Config and Config.shop.autoReturn
     local hasDistanceCheck <const> = distanceCfg and distanceCfg.enabled
@@ -36,12 +51,28 @@ CreateThread(function()
     while true do
         local wagon = MyWagon
         local isWagonActive = false
+        local preserveWhenDistant = isAutoReturnExcluded(MyWagonModel, distanceCfg)
+
+        -- Persistent wagons can lose their local handle outside the streaming
+        -- bubble. Keep the wagon id/net id and resolve the entity again when
+        -- the same network object streams back to this client.
+        if preserveWhenDistant and not entityExists(wagon) and not IsSpawningWagonActive then
+            local resolvedWagon = resolveTrackedWagonEntity()
+            if entityExists(resolvedWagon) then
+                MyWagon = resolvedWagon
+                wagon = resolvedWagon
+                DBG:Info('Persistent wagon streamed back in. Restored local entity tracking.')
+                if IsActiveHuntingWagon and IsActiveHuntingWagon() and RefreshHuntingCargo then
+                    RefreshHuntingCargo()
+                end
+            end
+        end
 
         if entityExists(wagon) and not IsSpawningWagonActive then
             local isAlive = Citizen.InvokeNative(0xB86D29B10F627379, wagon, false, false) -- IsVehicleDriveable
             and not Citizen.InvokeNative(0xDDBEA5506C848227, wagon) -- IsVehicleWrecked
 
-            if hasDistanceCheck then
+            if hasDistanceCheck and not preserveWhenDistant then
                 local playerPed = PlayerPedId()
                 local offset = GetEntityCoords(playerPed) - GetEntityCoords(wagon)
                 local distanceSquared = offset.x * offset.x + offset.y * offset.y + offset.z * offset.z
@@ -62,11 +93,16 @@ CreateThread(function()
             if isAlive then
                 isWagonActive = true
             end
-        elseif not IsSpawningWagonActive
+        elseif not preserveWhenDistant
+            and not IsSpawningWagonActive
             and not IsPreviewInstanceTransitioning()
             and MyWagon == wagon then
             MyWagon = 0
             MyWagonId = nil
+        elseif preserveWhenDistant and not IsSpawningWagonActive and MyWagon == wagon then
+            -- The local entity handle is transient; ownership identifiers are
+            -- retained so cargo access survives network ownership migration.
+            MyWagon = 0
         end
 
         IsMyWagonActive = isWagonActive
@@ -337,6 +373,21 @@ CreateThread(function()
         end
 
         Wait(sleep)
+    end
+end)
+
+CreateThread(function()
+    local callSettings = Config.shop.callActiveWagon or {}
+    if callSettings.enabled ~= true then return end
+
+    local callControl = Config.controls.callWagon
+    while true do
+        if not InMenu
+            and not IsEntityDead(PlayerPedId())
+            and IsControlJustReleased(0, callControl) then
+            CallActiveWagon()
+        end
+        Wait(0)
     end
 end)
 
