@@ -130,7 +130,7 @@ Core.Callback.Register('bcc-wagons:LoadHuntingCarcass', function(source, cb, dat
 
         cargoStatus(wagonId, function(used, capacity)
             local units = getAnimalSize(modelHash)
-            local quality = math.max(0, math.min(2, math.floor(tonumber(data.quality) or 0)))
+            local quality = math.max(1, math.min(3, math.floor(tonumber(data.quality) or 1)))
             local isSkinned = data.isSkinned == true and 1 or 0
             local outfitHash = tonumber(data.outfitHash) or 0
             local metaTags = encodeMetaTags(data.metaTags)
@@ -208,7 +208,7 @@ Core.Callback.Register('bcc-wagons:ReserveHuntingCarcassUnload', function(source
                             carcassKey = row.carcass_key,
                             modelHash = tonumber(row.model_hash),
                             units = math.max(1, tonumber(row.cargo_units) or 1),
-                            quality = math.max(0, math.min(2, tonumber(row.quality) or 0)),
+                            quality = math.max(1, math.min(3, tonumber(row.quality) or 1)),
                             isSkinned = row.is_skinned == true
                                 or tonumber(row.is_skinned) == 1,
                             outfitHash = tonumber(row.outfit_hash) or 0,
@@ -287,7 +287,7 @@ CreateThread(function()
             `carcass_key` VARCHAR(64) NOT NULL,
             `model_hash` BIGINT NOT NULL,
             `cargo_units` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-            `quality` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            `quality` TINYINT UNSIGNED NOT NULL DEFAULT 1,
             `is_skinned` TINYINT(1) NOT NULL DEFAULT 0,
             `outfit_hash` BIGINT NOT NULL DEFAULT 0,
             `meta_tags` LONGTEXT NULL,
