@@ -70,6 +70,9 @@ Config = {
         -- active wagon. If it is not spawned, the selected owned wagon spawns.
         callActiveWagon = {
             enabled = true,
+            spawnOnRoadOnly = true, -- Avoid yards, fields, structures, and other off-road locations.
+            spawnClearance = 5.0,   -- Empty radius required around a road node.
+            roadSearchNodes = 30,   -- Nearby road nodes checked before cancelling the call.
         },
 
         -- Allow players to dismiss their wagon through the Flee prompt.
