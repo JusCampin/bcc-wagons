@@ -146,39 +146,37 @@ function GetSelectedWagon(wagonId, spawnOptions)
     if IsSelectedWagonRequestActive or IsSpawningWagonActive then return end
     IsSelectedWagonRequestActive = true
 
-    local function requestWagonData()
-        Core.Callback.TriggerAsync('bcc-wagons:GetSelectedWagonData', function(result)
+    Core.Callback.TriggerAsync('bcc-wagons:GetSelectedWagonData', function(result)
+        if not result then
             IsSelectedWagonRequestActive = false
-
-            if not result then
-                releaseShopDelivery(spawnOptions)
-                DBG:Warning('No active selected-wagon profile returned from server!')
-                return
-            end
-
-            SpawnWagon(result, spawnOptions)
-        end, wagonId and { wagonId = tonumber(wagonId) } or nil)
-    end
-
-    local siteId = type(spawnOptions) == 'table' and spawnOptions.shopSite
-    local shopSite = siteId and Sites[siteId]
-    if not shopSite then
-        requestWagonData()
-        return
-    end
-
-    Core.NotifyRightTip(_U('wagonPreparing'), 3000)
-    Core.Callback.TriggerAsync('bcc-wagons:ReserveShopDelivery', function(reservation)
-        if type(reservation) ~= 'table' or not reservation.token then
-            IsSelectedWagonRequestActive = false
-            Core.NotifyRightTip(_U('shopBusy'), 4000)
+            releaseShopDelivery(spawnOptions)
+            DBG:Warning('No active selected-wagon profile returned from server!')
             return
         end
 
-        spawnOptions.deliveryToken = reservation.token
-        spawnOptions.deliveryDestination = getShopDeliveryDestination(shopSite)
-        requestWagonData()
-    end, siteId)
+        local siteId = type(spawnOptions) == 'table' and spawnOptions.shopSite
+        local shopSite = siteId and Sites[siteId]
+        if not shopSite then
+            IsSelectedWagonRequestActive = false
+            SpawnWagon(result, spawnOptions)
+            return
+        end
+
+        -- Do not announce or reserve a delivery until ownership has been
+        -- confirmed. This avoids "Preparing" followed by "no wagon".
+        Core.NotifyRightTip(_U('wagonPreparing'), 3000)
+        Core.Callback.TriggerAsync('bcc-wagons:ReserveShopDelivery', function(reservation)
+            IsSelectedWagonRequestActive = false
+            if type(reservation) ~= 'table' or not reservation.token then
+                Core.NotifyRightTip(_U('shopBusy'), 4000)
+                return
+            end
+
+            spawnOptions.deliveryToken = reservation.token
+            spawnOptions.deliveryDestination = getShopDeliveryDestination(shopSite)
+            SpawnWagon(result, spawnOptions)
+        end, siteId)
+    end, wagonId and { wagonId = tonumber(wagonId) } or nil)
 end
 
 ---@param siteId string
@@ -236,6 +234,19 @@ end
 local function sendWagonToPlayer(wagon)
     SendingWagon = wagon
     CreateThread(sendWagon)
+end
+
+-- Calls the currently active wagon. An existing wagon travels to the player;
+-- otherwise the character's selected owned wagon is spawned nearby.
+function CallActiveWagon()
+    if IsSelectedWagonRequestActive or IsSpawningWagonActive then return false end
+
+    if wagonExists(MyWagon) then
+        sendWagonToPlayer(MyWagon)
+    else
+        GetSelectedWagon()
+    end
+    return true
 end
 
 local function calculateSpawnPosition(playerPed)
