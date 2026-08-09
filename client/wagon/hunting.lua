@@ -14,6 +14,7 @@ local NATIVE_SET_META_PED_TAG <const> = 0xBC6DF00D7A4A6819
 local NATIVE_FIX_PED_OUTFIT <const> = 0xAAB86462966168CE
 local NATIVE_UPDATE_PED_VARIATION <const> = 0xCC8CA3E88256E58F
 local NATIVE_SET_PED_QUALITY <const> = 0xCE6B874286D640BB
+local NATIVE_SET_ENTITY_HEALTH <const> = 0xAC2767ED8BDFAB15
 local NATIVE_SET_ENTITY_FULLY_LOOTED <const> = 0x6BCF5F3D8FFE988D
 local HuntingLoadPrompt = 0
 local HuntingUnloadPrompt = 0
@@ -238,11 +239,14 @@ local function loadCarcass(carcass)
     local modelHash = GetEntityModel(carcass)
     local netId = NetworkGetNetworkIdFromEntity(carcass)
     request.modelHash = modelHash
-    request.quality = Citizen.InvokeNative(
+    local nativeQuality = Citizen.InvokeNative(
         NATIVE_GET_CARCASS_QUALITY,
         carcass,
         Citizen.ResultAsInteger()
     )
+    -- The game uses 0=poor, 1=good, 2=perfect. Persist the player-facing
+    -- star count (1-3) so database values match what players see.
+    request.quality = math.max(1, math.min(3, (tonumber(nativeQuality) or 0) + 1))
     local skinnedResult = Citizen.InvokeNative(
         NATIVE_IS_ANIMAL_SKINNED,
         carcass,
@@ -374,12 +378,33 @@ local function unloadCarcass()
 
         SetEntityVisible(carcass, true, false)
         ResetEntityAlpha(carcass)
-        SetEntityHealth(carcass, 0, PlayerPedId())
-        Citizen.InvokeNative(
-            NATIVE_SET_PED_QUALITY,
-            carcass,
-            math.max(0, math.min(2, tonumber(reservation.quality) or 0))
-        )
+        local starQuality = math.max(1, math.min(3, tonumber(reservation.quality) or 1))
+
+        -- Quality must be present while the living ped transitions into a
+        -- carcass. Setting it only after death can leave the interaction UI
+        -- without a star rating even though the native later reads correctly.
+        -- The database stores visible stars (1-3), while the game quality
+        -- setter uses 0=poor, 1=good, 2=perfect.
+        local nativeQuality = starQuality - 1
+        Citizen.InvokeNative(NATIVE_SET_PED_QUALITY, carcass, nativeQuality)
+        -- Do not attribute the reconstructed death to the player. The wrapper's
+        -- damage-source argument makes the game evaluate a fresh kill and can
+        -- immediately reduce the restored quality by one star.
+        Citizen.InvokeNative(NATIVE_SET_ENTITY_HEALTH, carcass, 0)
+        Wait(0)
+        Citizen.InvokeNative(NATIVE_SET_PED_QUALITY, carcass, nativeQuality)
+
+        if Config.development and Config.development.enabled then
+            local restoredQuality = Citizen.InvokeNative(
+                NATIVE_GET_CARCASS_QUALITY,
+                carcass,
+                Citizen.ResultAsInteger()
+            )
+            DBG:Info(('Hunting carcass quality restore: stars=%d native=%s'):format(
+                starQuality,
+                tostring(restoredQuality)
+            ))
+        end
         if reservationIsSkinned then
             Wait(1000)
             Citizen.InvokeNative(NATIVE_SET_ENTITY_FULLY_LOOTED, carcass, true)
