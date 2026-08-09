@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `bcc_wagon_hunting_cargo` (
     `carcass_key` VARCHAR(64) NOT NULL,
     `model_hash` BIGINT NOT NULL,
     `cargo_units` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-    `quality` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    `quality` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Player-facing carcass quality: 1=poor, 2=good, 3=perfect',
     `is_skinned` TINYINT(1) NOT NULL DEFAULT 0,
     `outfit_hash` BIGINT NOT NULL DEFAULT 0,
     `meta_tags` LONGTEXT NULL,
