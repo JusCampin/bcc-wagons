@@ -2,8 +2,8 @@ local function formatWagonPrice(model, useCash)
     local currency = tonumber(model.currency) or 3
     if currency == 4 then return _U('free') end
     return useCash
-        and _U('cashAmount', tonumber(model.cashPrice) or 0)
-        or _U('goldAmount', tonumber(model.goldPrice) or 0)
+        and (_U('cashAmount') .. tostring(tonumber(model.cashPrice) or 0))
+        or (tostring(tonumber(model.goldPrice) or 0) .. _U('goldAmount'))
 end
 
 function BuildShopPurchasePage()
@@ -23,11 +23,11 @@ function BuildShopPurchasePage()
     local pending = false
 
     ShopUI.AddHeader(page, typeName)
-    ShopUI.AddText(page, 'wagon_purchase_model', _U('modelLabel', wagonModel.label or model))
+    ShopUI.AddText(page, 'wagon_purchase_model', _U('modelLabel') .. (wagonModel.label or model))
     local priceDisplay = ShopUI.AddText(
         page,
         'wagon_purchase_price',
-        _U('priceLabel', formatWagonPrice(wagonModel, useCash)),
+        _U('priceLabel') .. formatWagonPrice(wagonModel, useCash),
         currency == 4 and ShopUI.Styles.success or ShopUI.Styles.text
     )
 
@@ -44,7 +44,7 @@ function BuildShopPurchasePage()
             persist = true,
         }, function(selection)
             useCash = selection.value.extra
-            priceDisplay:update({ value = _U('priceLabel', formatWagonPrice(wagonModel, useCash)) })
+            priceDisplay:update({ value = _U('priceLabel') .. formatWagonPrice(wagonModel, useCash) })
         end)
     end
 
