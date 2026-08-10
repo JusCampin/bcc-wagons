@@ -109,12 +109,14 @@ local function getPreviewCameraSettings(preview)
         fov = tonumber(overrides.fov) or tonumber(defaults.fov),
         referenceFov = tonumber(overrides.referenceFov) or tonumber(defaults.referenceFov) or 42.0,
         referenceDistance = tonumber(overrides.referenceDistance) or tonumber(defaults.referenceDistance) or 4.75,
-        distance = tonumber(overrides.distance) or tonumber(defaults.distance) or 3.25,
+        distance = tonumber(overrides.distance) or tonumber(defaults.distance) or 3.00,
         minimumFov = tonumber(overrides.minimumFov) or tonumber(defaults.minimumFov) or 30.0,
         maximumFov = tonumber(overrides.maximumFov) or tonumber(defaults.maximumFov) or 65.0,
         horizontalOffset = tonumber(overrides.horizontalOffset) or tonumber(defaults.horizontalOffset) or 0.85,
-        cameraHeightOffset = tonumber(overrides.cameraHeightOffset) or tonumber(defaults.cameraHeightOffset) or 0.20,
+        cameraHeightOffset = tonumber(overrides.cameraHeightOffset) or tonumber(defaults.cameraHeightOffset) or 0.45,
         targetHeightOffset = tonumber(overrides.targetHeightOffset) or tonumber(defaults.targetHeightOffset) or 0.05,
+        fitPadding = tonumber(overrides.fitPadding) or tonumber(defaults.fitPadding) or 1.10,
+        maximumDistance = tonumber(overrides.maximumDistance) or tonumber(defaults.maximumDistance) or 14.0,
     }
 end
 
@@ -140,10 +142,55 @@ local function resolvePreviewFov(preview, cameraConfig)
     return math.min(cameraConfig.maximumFov, math.max(cameraConfig.minimumFov, fov))
 end
 
+local function resolvePreviewCameraTarget(preview, cameraConfig)
+    local cameraX, cameraY = resolvePreviewCameraPosition(preview, cameraConfig)
+    local directionX = cameraX - preview.coords.x
+    local directionY = cameraY - preview.coords.y
+    local directionLength = math.sqrt(directionX * directionX + directionY * directionY)
+    if directionLength < 0.001 then
+        return preview.coords.x, preview.coords.y,
+            preview.coords.z + cameraConfig.targetHeightOffset
+    end
+
+    directionX = directionX / directionLength
+    directionY = directionY / directionLength
+    return preview.coords.x + directionY * cameraConfig.horizontalOffset,
+        preview.coords.y - directionX * cameraConfig.horizontalOffset,
+        preview.coords.z + cameraConfig.targetHeightOffset
+end
+
 function ShopUI.PlacePreviewWagon(entity, preview)
     if not entity or entity == 0 or not preview then return end
 
     local previewRig = type(preview.preview) == 'table' and preview.preview or nil
+    local cameraConfig = getPreviewCameraSettings(preview)
+    local cameraX, cameraY = resolvePreviewCameraPosition(preview, cameraConfig)
+    local coords = preview.coords
+    local directionX = cameraX - coords.x
+    local directionY = cameraY - coords.y
+    local directionLength = math.sqrt(directionX * directionX + directionY * directionY)
+    local placementX = coords.x
+    local placementY = coords.y
+
+    if directionLength > 0.001 then
+        directionX = directionX / directionLength
+        directionY = directionY / directionLength
+
+        local minimum, maximum = GetModelDimensions(GetEntityModel(entity))
+        local halfX = math.abs(maximum.x - minimum.x) * 0.5
+        local halfY = math.abs(maximum.y - minimum.y) * 0.5
+        local halfZ = math.abs(maximum.z - minimum.z) * 0.5
+        local boundsRadius = math.sqrt(halfX * halfX + halfY * halfY + halfZ * halfZ)
+        local fov = resolvePreviewFov(preview, cameraConfig)
+        local fitDistance = boundsRadius * cameraConfig.fitPadding / math.tan(math.rad(fov * 0.5))
+        local framedDistance = math.min(cameraConfig.maximumDistance, math.max(directionLength, fitDistance))
+        local placementOffset = framedDistance - directionLength
+
+        placementX = placementX - directionX * placementOffset
+        placementY = placementY - directionY * placementOffset
+    end
+
+    SetEntityCoordsNoOffset(entity, placementX, placementY, coords.z - 1.0, false, false, false)
     SetEntityHeading(entity, tonumber(previewRig and previewRig.heading) or preview.heading)
     Citizen.InvokeNative(0x9587913B9E772D29, entity, false) -- PlaceEntityOnGroundProperly
 end
@@ -232,31 +279,19 @@ function ShopUI.FramePreviewCamera(entity)
     local preview = ShopUI.GetPreviewWagonConfig()
     if not preview then return end
 
-    local entityCoords = GetEntityCoords(entity)
     local cameraConfig = getPreviewCameraSettings(preview)
     local cameraX, cameraY, cameraZ = resolvePreviewCameraPosition(preview, cameraConfig)
-    local directionX = cameraX - preview.coords.x
-    local directionY = cameraY - preview.coords.y
-    local directionLength = math.sqrt(directionX * directionX + directionY * directionY)
-    if directionLength < 0.001 then return end
+    local targetX, targetY, targetZ = resolvePreviewCameraTarget(preview, cameraConfig)
+    local fov = resolvePreviewFov(preview, cameraConfig)
 
-    directionX = directionX / directionLength
-    directionY = directionY / directionLength
-    local referenceDistance = math.max(0.1, cameraConfig.referenceDistance)
-    local horizontalOffset = cameraConfig.horizontalOffset
-        * math.min(1.0, directionLength / referenceDistance)
-    local targetX = entityCoords.x + directionY * horizontalOffset
-    local targetY = entityCoords.y - directionX * horizontalOffset
-    local targetZ = preview.coords.z + cameraConfig.targetHeightOffset
-
-    SetCamCoord(
+    SetCamCoord(ShopCam, cameraX, cameraY, cameraZ)
+    PointCamAtCoord(
         ShopCam,
-        cameraX,
-        cameraY,
-        cameraZ
+        targetX,
+        targetY,
+        targetZ
     )
-    PointCamAtCoord(ShopCam, targetX, targetY, targetZ)
-    SetCamFov(ShopCam, resolvePreviewFov(preview, cameraConfig))
+    SetCamFov(ShopCam, fov)
 end
 
 function ShopUI.ToggleRotation(direction)
