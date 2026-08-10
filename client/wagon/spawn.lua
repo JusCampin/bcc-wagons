@@ -3,6 +3,8 @@ local IsSelectedWagonRequestActive = false
 local ARRIVAL_DISTANCE = 10.0
 local GET_PED_IN_DRAFT_HARNESS <const> = 0xA8BA0BAE0173457B
 local MAX_DRAFT_ANIMALS <const> = 4
+local TASK_VEHICLE_DRIVE_TO_POINT_2 <const> = 0x6524A8981E8BE7C9
+local calculateSpawnPosition
 
 local DraftAnimalGroups = {
     -- Regional Draft Horse Groups
@@ -230,27 +232,88 @@ local function sendWagon()
         return
     end
 
-    -- A wagon is a vehicle and cannot execute a ped movement task. Assign the
-    -- call task to its harnessed draft animals, which pull the wagon normally.
     local draftAnimals = getDraftAnimals(wagon)
-    if #draftAnimals == 0 then
-        DBG:Warning('Unable to call wagon: no draft animals were found in its harness.')
+    NetworkRequestControlOfEntity(wagon)
+    local controlDeadline = GetGameTimer() + 1000
+    while not NetworkHasControlOfEntity(wagon) and GetGameTimer() < controlDeadline do
+        Wait(0)
+        NetworkRequestControlOfEntity(wagon)
+    end
+
+    if not NetworkHasControlOfEntity(wagon) then
+        DBG:Warning('Unable to call wagon: network control request failed.')
         SendingWagon = nil
         return
     end
 
-    for _, animal in ipairs(draftAnimals) do
-        TaskGoToEntity(animal, playerPed, -1, 10.2, 2.0, 0.0, 0)
+    local callSettings = Config.shop.callActiveWagon or {}
+    local speed = tonumber(callSettings.driveSpeed) or 3.0
+    local target = calculateSpawnPosition(playerPed)
+
+    local function relocateToRoad(reason)
+        if callSettings.relocateIfDriveFails ~= true then
+            DBG:Warning(('Call wagon stopped: %s'):format(reason))
+            return false
+        end
+
+        local wagonId = MyWagonId
+        DBG:Info(('Call wagon: %s; re-summoning on a clear road/trail node.'):format(reason))
+        SendingWagon = nil
+        -- This replacement is already the terminal road-safe fallback. Do not
+        -- start another call movement task after it spawns, or a blocked area
+        -- can recurse through an endless spawn -> stuck -> spawn loop.
+        GetSelectedWagon(wagonId, { skipCallMovement = true })
+        return true
     end
 
+    if not target then
+        relocateToRoad('no clear approach node was found')
+        return
+    end
+
+    -- This native drives directly rather than planning a road route. Use it
+    -- only when the road/trail node near the player has a clear approach.
+    if not HasEntityClearLosToCoord(wagon, target.x, target.y, target.z, 17) then
+        relocateToRoad('the direct approach was obstructed')
+        return
+    end
+
+    Citizen.InvokeNative(
+        TASK_VEHICLE_DRIVE_TO_POINT_2,
+        wagon,
+        target.x,
+        target.y,
+        target.z,
+        speed,
+        0.25,
+        0
+    )
+    DBG:Info('Call wagon: driving to a clear road/trail node near the player.')
+
+    local progressPosition = GetEntityCoords(wagon)
+    local progressCheckAt = GetGameTimer()
+        + math.max(1000, tonumber(callSettings.stuckCheckMs) or 1500)
+
     while SendingWagon == wagon and MyWagon == wagon and wagonExists(wagon) do
-        Wait(0)
+        Wait(50)
         local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(wagon))
         if distance <= ARRIVAL_DISTANCE then
             for _, animal in ipairs(draftAnimals) do
                 if DoesEntityExist(animal) then ClearPedTasks(animal) end
             end
             break
+        end
+
+        if GetGameTimer() >= progressCheckAt then
+            local currentPosition = GetEntityCoords(wagon)
+            local movement = #(currentPosition - progressPosition)
+            if movement < 0.5 then
+                if relocateToRoad('the wagon became stuck') then return end
+                break
+            end
+            progressPosition = currentPosition
+            progressCheckAt = GetGameTimer()
+                + math.max(1000, tonumber(callSettings.stuckCheckMs) or 1500)
         end
     end
 
@@ -265,12 +328,14 @@ end
 -- Calls the currently active wagon. An existing wagon travels to the player;
 -- otherwise the character's selected owned wagon is spawned nearby.
 function CallActiveWagon()
-    if IsSelectedWagonRequestActive or IsSpawningWagonActive then return false end
+    if SendingWagon or IsSelectedWagonRequestActive or IsSpawningWagonActive then return false end
 
     if wagonExists(MyWagon) then
         sendWagonToPlayer(MyWagon)
     else
-        GetSelectedWagon()
+        -- Initial J summon already spawns at a clear road/trail node near the
+        -- player. Movement is only for a wagon that was already active.
+        GetSelectedWagon(nil, { skipCallMovement = true })
     end
     return true
 end
@@ -289,7 +354,7 @@ local function isCallSpawnClear(coords, radius, playerPed)
     return true
 end
 
-local function calculateSpawnPosition(playerPed)
+calculateSpawnPosition = function(playerPed)
     local x, y, z = table.unpack(GetOffsetFromEntityInWorldCoords(playerPed, 0.0, -10.0, 0.0))
     local callSettings = Config.shop.callActiveWagon or {}
     local clearance = math.max(2.0, tonumber(callSettings.spawnClearance) or 5.0)
@@ -470,14 +535,7 @@ function SpawnWagon(data, spawnOptions)
 
     TriggerServerEvent('bcc-wagons:RegisterInventory', MyWagonId)
     Entity(wagon).state:set('myWagonId', MyWagonId, true)
-
-    InitializeHuntingWagon(wagon)
-    CreateThread(function()
-        local huntingSettings = Config.huntingWagon or {}
-        local tarpDelay = math.max(0, tonumber(huntingSettings.tarpInitializationDelayMs) or 500)
-        Wait(tarpDelay * 2 + 100)
-        if MyWagon == wagon and wagonExists(wagon) then RefreshHuntingCargo() end
-    end)
+    EmitWagonLifecycleEvent('bcc-wagons:client:wagonSpawned')
 
     --TriggerEvent('bcc-wagons:TradeWagon')
     TriggerEvent('bcc-wagons:WagonPrompts')
@@ -486,7 +544,7 @@ function SpawnWagon(data, spawnOptions)
 
     if shopSpawn then
         revealShopDeliveryWagon(wagon, shopSpawn, spawnOptions)
-    else
+    elseif type(spawnOptions) ~= 'table' or spawnOptions.skipCallMovement ~= true then
         sendWagonToPlayer(wagon)
     end
 end
