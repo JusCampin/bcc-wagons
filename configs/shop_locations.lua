@@ -40,7 +40,7 @@ Sites = {
                 heading = 0.57,
                 cameraSide = 1,
                 -- Optional overrides. Omitted values use Config.preview.camera.
-                -- cameraSettings = { distance = 3.0, fov = 60.0, horizontalOffset = 0.70 },
+                -- cameraSettings = { distance = 3.0, fov = 60.0, horizontalOffset = 0.70, fitPadding = 1.10 },
             },
         },
         wainwrightBuy = false,                              -- Only Wainwrights can Buy Wagons from this Shop
