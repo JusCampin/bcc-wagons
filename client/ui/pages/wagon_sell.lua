@@ -14,7 +14,9 @@ end
 
 local function formatPayout(quote, useCash)
     if quote.currency == 4 then return _U('noPayout') end
-    return useCash and _U('cashAmount', quote.cash) or _U('goldAmount', quote.gold)
+    return useCash
+        and (_U('cashAmount') .. tostring(quote.cash))
+        or (tostring(quote.gold) .. _U('goldAmount'))
 end
 
 --- @param wagon table
@@ -28,21 +30,20 @@ function BuildWagonSellPage(wagon)
     local page = ShopUI.RegisterPage('wagon_sell')
     local pending = false
     local useCash = quote.currency ~= 2
-    local wagonName = wagon.name or _U('wagonNumber', wagon.id)
+    local wagonName = wagon.name or (_U('wagonNumber') .. tostring(wagon.id))
 
     ShopUI.AddHeader(page, _U('confirmWagonSale'))
 
-    ShopUI.AddText(page, 'wagon_sale_identity', _U('saleIdentity',
-        wagonName,
-        quote.wagonType
-    ))
+    ShopUI.AddText(page, 'wagon_sale_identity',
+        _U('saleIdentity') .. wagonName .. '\n' .. _U('wagonType') .. quote.wagonType
+    )
 
     page:RegisterElement('line', { slot = 'content' })
 
     local payoutDisplay = ShopUI.AddText(
         page,
         'wagon_sale_payout',
-        _U('payoutLabel', formatPayout(quote, useCash)),
+        _U('payoutLabel') .. formatPayout(quote, useCash),
         quote.currency == 4 and ShopUI.Styles.text or ShopUI.Styles.success
     )
 
@@ -59,7 +60,7 @@ function BuildWagonSellPage(wagon)
             persist = true,
         }, function(selection)
             useCash = selection.value.extra
-            payoutDisplay:update({ value = _U('payoutLabel', formatPayout(quote, useCash)) })
+            payoutDisplay:update({ value = _U('payoutLabel') .. formatPayout(quote, useCash) })
         end)
     end
 
