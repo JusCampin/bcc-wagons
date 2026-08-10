@@ -61,10 +61,9 @@ CreateThread(function()
             if entityExists(resolvedWagon) then
                 MyWagon = resolvedWagon
                 wagon = resolvedWagon
+                MyWagonModel = MyWagonModel or ResolveWagonModelName(GetEntityModel(resolvedWagon))
                 DBG:Info('Persistent wagon streamed back in. Restored local entity tracking.')
-                if IsActiveHuntingWagon and IsActiveHuntingWagon() and RefreshHuntingCargo then
-                    RefreshHuntingCargo()
-                end
+                EmitWagonLifecycleEvent('bcc-wagons:client:wagonStreamedIn')
             end
         end
 
