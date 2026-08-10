@@ -16,32 +16,45 @@ end
 
 local function previewWagon(wagon)
     CreateThread(function()
+        local requestId = ShopUI.BeginPreviewRequest()
         local cached = GetCachedWagon(wagon.id)
         if cached and cached.entity ~= 0 and DoesEntityExist(cached.entity) then
             MyEntity = cached.entity
             MyEntityID = wagon.id
-            configurePreviewWagon(MyEntity, wagon, ShopUI.GetPreviewWagonConfig())
-            ShopUI.FramePreviewCamera(MyEntity)
+            ShopUI.HidePreviewWagon(MyEntity)
+            configurePreviewWagon(MyEntity, wagon, ShopUI.GetPreviewWagonConfig(), function(ready)
+                if not ShopUI.IsPreviewRequestCurrent(requestId) then
+                    return
+                end
+                ShopUI.FramePreviewCamera(MyEntity)
+                if ready then ShopUI.RevealPreviewWagon(MyEntity) end
+            end)
             showPreviewCamera()
             return
         end
 
         ClearShopWagon()
-        local requestId = ShopUI.BeginPreviewRequest()
+        requestId = ShopUI.BeginPreviewRequest()
         local modelName = wagon.model
         local model = modelName and joaat(modelName)
-        if not model then return end
+        if not model then
+            return
+        end
+
+        local function abortPreview()
+            Citizen.InvokeNative(BUSY_SPINNER_OFF)
+        end
 
         Citizen.InvokeNative(BUSY_SPINNER_TEXT, CreateVarString(10, 'LITERAL_STRING', _U('loadingWagon')))
         if not LoadModel(model, modelName) or not ShopUI.IsPreviewRequestCurrent(requestId) then
-            Citizen.InvokeNative(BUSY_SPINNER_OFF)
+            abortPreview()
             return
         end
 
         local spawn = ShopUI.GetPreviewWagonConfig()
         if not spawn then
             SetModelAsNoLongerNeeded(model)
-            Citizen.InvokeNative(BUSY_SPINNER_OFF)
+            abortPreview()
             return
         end
 
@@ -52,7 +65,7 @@ local function previewWagon(wagon)
 
         if not CheckEntityExists(entity) or not ShopUI.IsPreviewRequestCurrent(requestId) then
             if entity and entity ~= 0 and DoesEntityExist(entity) then DeleteEntity(entity) end
-            Citizen.InvokeNative(BUSY_SPINNER_OFF)
+            abortPreview()
             return
         end
 
@@ -66,10 +79,10 @@ local function previewWagon(wagon)
                 end
                 return
             end
+            ShopUI.FramePreviewCamera(entity)
             if ready then ShopUI.RevealPreviewWagon(entity) end
             Citizen.InvokeNative(BUSY_SPINNER_OFF)
         end)
-        ShopUI.FramePreviewCamera(entity)
         showPreviewCamera()
         SetCachedWagon(wagon.id, wagon, entity)
     end)
@@ -179,8 +192,8 @@ function BuildMyWagonsPage()
     else
         for _, wagon in ipairs(MyWagonsData) do
             local expanded = tonumber(ExpandedWagonId) == tonumber(wagon.id)
-            local name = wagon.name or _U('wagonNumber', wagon.id)
-            if wagon.is_selected == true then name = _U('activeWagonLabel', name) end
+            local name = wagon.name or (_U('wagonNumber') .. tostring(wagon.id))
+            if wagon.is_selected == true then name = name .. _U('activeWagonLabel') end
 
             ShopUI.AddButton(
                 page,
