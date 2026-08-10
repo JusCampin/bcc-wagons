@@ -21,16 +21,20 @@ local function previewShopModel(modelName)
         local requestId = ShopUI.BeginPreviewRequest()
         local model = joaat(modelName)
 
+        local function abortPreview()
+            Citizen.InvokeNative(0x58F441B90EA84D06)
+        end
+
         Citizen.InvokeNative(0x7F78CD75CC4539E4, CreateVarString(10, 'LITERAL_STRING', _U('loadingShopWagon')))
         if not LoadModel(model, modelName) or not ShopUI.IsPreviewRequestCurrent(requestId) then
-            Citizen.InvokeNative(0x58F441B90EA84D06)
+            abortPreview()
             return
         end
 
         local spawn = ShopUI.GetPreviewWagonConfig()
         if not spawn then
             SetModelAsNoLongerNeeded(model)
-            Citizen.InvokeNative(0x58F441B90EA84D06)
+            abortPreview()
             return
         end
 
@@ -40,7 +44,7 @@ local function previewShopModel(modelName)
         SetModelAsNoLongerNeeded(model)
         if not CheckEntityExists(entity) or not ShopUI.IsPreviewRequestCurrent(requestId) then
             if entity and entity ~= 0 and DoesEntityExist(entity) then DeleteEntity(entity) end
-            Citizen.InvokeNative(0x58F441B90EA84D06)
+            abortPreview()
             return
         end
 
@@ -55,10 +59,10 @@ local function previewShopModel(modelName)
                 end
                 return
             end
+            ShopUI.FramePreviewCamera(entity)
             if ready then ShopUI.RevealPreviewWagon(entity) end
             Citizen.InvokeNative(0x58F441B90EA84D06)
         end)
-        ShopUI.FramePreviewCamera(entity)
 
         if not Cam then
             Cam = true
