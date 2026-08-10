@@ -94,6 +94,7 @@ RegisterNetEvent('bcc-wagons:UpdateMyWagonEntity', function(targetNetId)
                         MyWagon = resolvedEntity
                         local entityState = Entity(resolvedEntity).state
                         MyWagonId = (entityState and entityState.myWagonId) or MyWagonId
+                        MyWagonModel = MyWagonModel or ResolveWagonModelName(GetEntityModel(resolvedEntity))
                         IsWagonFleeingState = false
                         isEntityFound = true
 
@@ -102,6 +103,7 @@ RegisterNetEvent('bcc-wagons:UpdateMyWagonEntity', function(targetNetId)
                         end
 
                         DBG:Info('Wagon entity handle successfully re-synchronized across server-instance boundaries: ', resolvedEntity)
+                        EmitWagonLifecycleEvent('bcc-wagons:client:wagonStreamedIn')
                         break
                     end
                 end
