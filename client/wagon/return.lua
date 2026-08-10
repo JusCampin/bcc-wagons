@@ -45,6 +45,11 @@ function ReturnWagon(silent)
     end
 
     GetControlOfWagon()
+    TriggerEvent('bcc-wagons:client:wagonReturning', {
+        entity = wagon,
+        id = MyWagonId,
+        model = MyWagonModel,
+    })
     deleteWagonEntity(wagon)
     clearActiveWagon(wagon)
 
