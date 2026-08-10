@@ -5,7 +5,8 @@ function BuildWagonDetailPage(wagon, origin)
 
     local page = ShopUI.RegisterPage('wagon_detail')
     local wagonId = tonumber(wagon.id)
-    local wagonName = wagon.name or (wagonId and _U('wagonNumber', wagonId) or _U('wagonDetails'))
+    local wagonName = wagon.name
+        or (wagonId and (_U('wagonNumber') .. tostring(wagonId)) or _U('wagonDetails'))
     local typeName, modelData = ShopUI.GetModel(wagon.model)
     local modelName = modelData and modelData.label or _U('unknown')
     local inventoryLimit = modelData and tonumber(modelData.invLimit)
