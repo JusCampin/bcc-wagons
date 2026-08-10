@@ -7,78 +7,10 @@ local NATIVE_SET_MP_GAMER_TAG_VISIBILITY = 0x93171DDDAB274EB8
 local NATIVE_IS_MP_GAMER_TAG_ACTIVE_ON_ENTITY = 0x502E1591A504F843
 local NATIVE_REMOVE_MP_GAMER_TAG = 0x839BFD7D7E49FE09
 local NATIVE_IS_PED_ON_SPECIFIC_VEHICLE = 0xEC5F66E459AF3BB2
-local NATIVE_SET_PLAYER_HUNTING_WAGON = 0x6A4404BDFA62CE2C
-local NATIVE_ADD_ADDITIONAL_PROP_SET_FOR_VEHICLE = 0x75F90E4051CC084C
-local NATIVE_SET_BATCH_TARP_HEIGHT = 0x31F343383F19C987
 local wagonTagGeneration = 0
 
 local function isValidEntity(entity)
     return entity and entity ~= 0 and DoesEntityExist(entity)
-end
-
-local function clampTarpHeight(height)
-    return math.max(0.0, math.min(1.0, tonumber(height) or 0.0))
-end
-
-function IsActiveHuntingWagon()
-    local settings = Config.huntingWagon
-    return settings
-        and settings.enabled == true
-        and MyWagonModel == (settings.model or 'huntercart01')
-        and isValidEntity(MyWagon)
-end
-
-function SetHuntingWagonTarpHeight(height, immediately)
-    if not IsActiveHuntingWagon() then return false end
-
-    local tarpHeight = clampTarpHeight(height)
-    Citizen.InvokeNative(
-        NATIVE_SET_BATCH_TARP_HEIGHT,
-        MyWagon,
-        tarpHeight,
-        immediately == true
-    )
-    return true, tarpHeight
-end
-
--- Enables Rockstar's native carcass interaction and covered cargo presentation.
-function InitializeHuntingWagon(wagon)
-    local settings = Config.huntingWagon
-    if not settings or settings.enabled ~= true then return false end
-    if MyWagonModel ~= (settings.model or 'huntercart01') then return false end
-    if not isValidEntity(wagon) then return false end
-
-    -- This undocumented native enters Rockstar's hunting-wagon interaction
-    -- flow when a carcass is picked up. Keep it independently configurable:
-    -- some RedM builds crash because the supporting RDO content scripts are
-    -- not running on community servers.
-    if settings.nativeInteractionEnabled == true then
-        Citizen.InvokeNative(NATIVE_SET_PLAYER_HUNTING_WAGON, PlayerId(), wagon)
-        DBG:Warning('Experimental native hunting-wagon interaction is enabled.')
-    end
-
-    Citizen.InvokeNative(
-        NATIVE_ADD_ADDITIONAL_PROP_SET_FOR_VEHICLE,
-        wagon,
-        joaat(settings.tarpPropSet or 'pg_mp005_huntingWagonTarp01')
-    )
-
-    -- The prop set is created asynchronously. Setting its height in the same
-    -- frame is ignored, so apply it after loading and once more as a fallback.
-    CreateThread(function()
-        local delay = math.max(0, tonumber(settings.tarpInitializationDelayMs) or 500)
-        Wait(delay)
-
-        if MyWagon ~= wagon or not isValidEntity(wagon) then return end
-        SetHuntingWagonTarpHeight(settings.initialTarpHeight or 0.0, true)
-
-        Wait(delay)
-        if MyWagon ~= wagon or not isValidEntity(wagon) then return end
-        SetHuntingWagonTarpHeight(settings.initialTarpHeight or 0.0, true)
-    end)
-
-    DBG:Info('Initialized native hunting wagon behavior for:', MyWagonModel)
-    return true
 end
 
 local function getSubmergedLevel(entity)
