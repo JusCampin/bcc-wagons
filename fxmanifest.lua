@@ -7,30 +7,26 @@ author 'BCC Team'
 version '1.4.0'
 
 shared_scripts {
-    'configs/settings.lua',
+    'configs/main.lua',
     'configs/wainwright.lua',
     'configs/inventory.lua',
     'configs/map.lua',
     'configs/wagon_catalog.lua',
     'configs/shop_locations.lua',
-    'locales/init.lua',
-    'locales/en.lua',
-    'locales/fr.lua',
-    'locales/de.lua',
-    'locales/nl.lua',
-    'locales/ro.lua'
+    'locale.lua',
+    'language/*.lua'
 }
 
 client_scripts {
     'client/core/init.lua',
     'client/core/helpers.lua',
+    'client/core/api.lua',
     'client/core/preview_instance.lua',
     'client/core/dataview.lua',
     'client/ui/menu.lua',
     'client/ui/pages/*.lua',
     'client/wagon/inventory.lua',
     'client/wagon/features.lua',
-    'client/wagon/hunting.lua',
     'client/wagon/spawn.lua',
     'client/wagon/return.lua',
     'client/wagon/interactions.lua',
@@ -46,11 +42,11 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/core/init.lua',
     'server/core/helpers.lua',
+    'server/core/api.lua',
     'server/core/preview_instance.lua',
     'server/wagon/delivery.lua',
     'server/core/cooldown.lua',
     'server/wagon/inventory.lua',
-    'server/wagon/hunting.lua',
     'server/wagon/interactions.lua',
     'server/wagon/purchase.lua',
     'server/wagon/sale.lua',
@@ -59,4 +55,3 @@ server_scripts {
 }
 
 dependency 'feather-menu'
-dependency 'bcc-animal-data'
